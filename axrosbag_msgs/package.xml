@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>axrosbag_msgs</name>
+  <version>1.0.0</version>
+  <description>Service definitions for axrosbag</description>
+
+  <maintainer email="xxx@xxx.xxx">autoxing</maintainer>
+
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>rosgraph_msgs</depend>
+  <build_depend>message_generation</build_depend>
+  <build_export_depend>message_runtime</build_export_depend>
+  <exec_depend>message_runtime</exec_depend>
+
+</package>

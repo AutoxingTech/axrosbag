@@ -1,0 +1,12 @@
+BasedOnStyle: Microsoft
+# Force pointers to the type for C++.
+DerivePointerAlignment: false
+PointerAlignment: Left
+AllowShortFunctionsOnASingleLine: InlineOnly
+#
+AccessModifierOffset: -4
+ColumnLimit: 120
+SortIncludes: false
+IndentPPDirectives: AfterHash
+AlwaysBreakTemplateDeclarations: Yes
+BreakBeforeBinaryOperators: NonAssignment
