@@ -16,7 +16,7 @@ or
 
 ### Command line interface
 
-1. 保存以当前的日期和时间命名的 bag
+1. 保存以当前的日期和时间命名的 bag, 默认保存在当前目录
 
 ```bash
 rosrun axrosbag axrosbag -t
