@@ -10,10 +10,10 @@
 
   <buildtool_depend>catkin</buildtool_depend>
   <depend>rosbag</depend>
-  <depend>axrosbag_msgs</depend>
   <depend>roscpp</depend>
-  <depend>rosgraph_msgs</depend>
   <depend>std_srvs</depend>
   <depend>topic_tools</depend>
+  <build_depend>message_generation</build_depend>
+  <exec_depend>message_runtime</exec_depend>
 
 </package>

@@ -201,7 +201,7 @@ void Recorder::subscribe(std::string const& topic, boost::shared_ptr<MessageQueu
 }
 
 bool Recorder::writeTopic(rosbag::Bag& bag, MessageQueue& msg_queue, std::string const& topic,
-                          axrosbag_msgs::TriggerRecord::Request& req, axrosbag_msgs::TriggerRecord::Response& res)
+                          TriggerRecord::Request& req, TriggerRecord::Response& res)
 {
     boost::mutex::scoped_lock l(msg_queue.lock);
 
@@ -239,7 +239,7 @@ bool Recorder::writeTopic(rosbag::Bag& bag, MessageQueue& msg_queue, std::string
     return true;
 }
 
-bool Recorder::triggerRecordCB(axrosbag_msgs::TriggerRecord::Request& req, axrosbag_msgs::TriggerRecord::Response& res)
+bool Recorder::triggerRecordCB(TriggerRecord::Request& req, TriggerRecord::Response& res)
 {
     if (!postfixFilename(req.filename))
     {
@@ -441,13 +441,13 @@ int RecorderClient::run(RecorderClientOptions const& opts)
 {
     if (opts.action_ == RecorderClientOptions::TRIGGER_WRITE)
     {
-        ros::ServiceClient client = nh_.serviceClient<axrosbag_msgs::TriggerRecord>("trigger_record");
+        ros::ServiceClient client = nh_.serviceClient<TriggerRecord>("trigger_record");
         if (!client.exists())
         {
             ROS_ERROR("Service %s does not exist. Is record running in this namespace?", "trigger_record");
             return 1;
         }
-        axrosbag_msgs::TriggerRecordRequest req;
+        TriggerRecordRequest req;
         req.topics = opts.topics_;
 
         if (opts.filename_.empty())
@@ -470,7 +470,7 @@ int RecorderClient::run(RecorderClientOptions const& opts)
         boost::filesystem::path p(boost::filesystem::system_complete(req.filename));
         req.filename = p.string();
 
-        axrosbag_msgs::TriggerRecordResponse res;
+        TriggerRecordResponse res;
         if (!client.call(req, res))
         {
             ROS_ERROR("Failed to call service");

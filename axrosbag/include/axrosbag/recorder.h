@@ -10,13 +10,12 @@
 #include <ros/time.h>
 #include <rosbag/bag.h>
 #include <rosbag/macros.h>
-#include <axrosbag_msgs/TriggerRecord.h>
-#include <rosgraph_msgs/TopicStatistics.h>
 #include <std_srvs/SetBool.h>
 #include <string>
 #include <topic_tools/shape_shifter.h>
 #include <utility>
 #include <vector>
+#include <axrosbag/TriggerRecord.h>
 
 namespace axrosbag
 {
@@ -109,13 +108,13 @@ private:
     void subscribe(std::string const& topic, boost::shared_ptr<MessageQueue> queue);
     void topicCB(const ros::MessageEvent<topic_tools::ShapeShifter const>& msg_event,
                  boost::shared_ptr<MessageQueue> queue);
-    bool triggerRecordCB(axrosbag_msgs::TriggerRecord::Request& req, axrosbag_msgs::TriggerRecord::Response& res);
+    bool triggerRecordCB(TriggerRecord::Request& req, TriggerRecord::Response& res);
     bool enableCB(std_srvs::SetBool::Request& req, std_srvs::SetBool::Response& res);
     void pause();
     void resume();
     void pollTopics(ros::TimerEvent const& e, axrosbag::RecorderOptions* options);
-    bool writeTopic(rosbag::Bag& bag, MessageQueue& msg_queue, std::string const& topic,
-                    axrosbag_msgs::TriggerRecord::Request& req, axrosbag_msgs::TriggerRecord::Response& res);
+    bool writeTopic(rosbag::Bag& bag, MessageQueue& msg_queue, std::string const& topic, TriggerRecord::Request& req,
+                    TriggerRecord::Response& res);
 };
 
 struct RecorderClientOptions
