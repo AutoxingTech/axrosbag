@@ -25,7 +25,6 @@ bool parseOptions(po::variables_map& vm, int argc, char** argv)
         ("trigger-write,t", "Write buffer of selected topcis to a bag file")
         ("pause,p", "Stop buffering new messages until resumed or write is triggered")
         ("resume,r", "Resume buffering new messages, writing over older messages as needed")
-        ("all,a", "Record all topics")
         ("bz2,j", "use BZ2 compression")
         ("lz4", "use LZ4 compression")
         ("duration,d", po::value<double>()->default_value(300.0),
@@ -77,9 +76,20 @@ bool parseVariablesMap(RecorderOptions& opts, po::variables_map const& vm)
         }
     }
 
-    opts.default_duration_limit_ = ros::Duration(vm["duration"].as<double>());
-    opts.all_topics_ = vm.count("all");
-    opts.compression_ = rosbag::compression::LZ4; // or BZ2
+    if (vm.count("duration"))
+        opts.default_duration_limit_ = ros::Duration(vm["duration"].as<double>());
+    else
+        opts.default_duration_limit_ = ros::Duration(300); // -d not specified，default 300s
+
+    opts.all_topics_ = vm.count("topic") ? false : true;
+
+    if (vm.count("lz4"))
+        opts.compression_ = rosbag::compression::LZ4;
+    else if (vm.count("bz2"))
+        opts.compression_ = rosbag::compression::BZ2;
+    else
+        opts.compression_ = rosbag::compression::LZ4; // --lz4 or --bz2 not specified，default lz4
+
     return true;
 }
 
@@ -102,24 +112,6 @@ bool parseVariablesMapClient(RecorderClientOptions& opts, po::variables_map cons
     return true;
 }
 
-void appendParamOptions(ros::NodeHandle& nh, RecorderOptions& opts)
-{
-    using XmlRpc::XmlRpcValue;
-    XmlRpcValue topics;
-
-    // Override program options for default limits if the parameters are set.
-    double tmp;
-    if (nh.getParam("default_duration_limit", tmp))
-        opts.default_duration_limit_ = ros::Duration(tmp);
-    nh.param("record_all_topics", opts.all_topics_, false);
-
-    if (!nh.getParam("topics", topics))
-    {
-        return;
-    }
-    ROS_ASSERT_MSG(topics.getType() == XmlRpcValue::TypeArray, "topics param must be an array");
-}
-
 int main(int argc, char** argv)
 {
     po::variables_map vm;
@@ -129,25 +121,24 @@ int main(int argc, char** argv)
     // Parse the command-line options
     if (vm.count("trigger-write") || vm.count("pause") || vm.count("resume"))
     {
-        RecorderClientOptions opts;
-        if (!parseVariablesMapClient(opts, vm))
+        RecorderClientOptions client_opts;
+        if (!parseVariablesMapClient(client_opts, vm))
             return 1;
-        ros::init(argc, argv, "snapshot_client", ros::init_options::AnonymousName);
+        ros::init(argc, argv, "axrosbag_client", ros::init_options::AnonymousName);
         RecorderClient client;
-        return client.run(opts);
+        return client.run(client_opts);
     }
 
     RecorderOptions opts;
     if (!parseVariablesMap(opts, vm))
         return 1;
 
-    ros::init(argc, argv, "snapshot", ros::init_options::AnonymousName);
+    ros::init(argc, argv, "axrosbag", ros::init_options::AnonymousName);
     ros::NodeHandle private_nh("~");
-    appendParamOptions(private_nh, opts);
 
     if (opts.topics_.empty() && !opts.all_topics_)
     {
-        ROS_FATAL("No topics selected. Exiting.");
+        ROS_FATAL("No topics selected.");
         return 1;
     }
 

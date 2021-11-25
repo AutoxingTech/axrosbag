@@ -4,46 +4,26 @@ The axrosbag node may run in the background, and you can save buffer data from t
 
 ### Run
 
-在launch文件中设置buffer duration，默认记录所有topics
+本程序默认记录所有 topic，默认以 lz4 格式压缩 bag，默认 buffer 时长为 300s;同时，也支持 --topic, --lz4 (bz2), -d 指定参数
 
 ```bash
-roslaunch axrosbag record.launch
+rosrun axrosbag axrosbag
+```
+or
+```bash
+./devel/lib/axrosbag/axrosbag
 ```
 
 ### Command line interface
 
-1. 保存以当前的日期和时间命名的bag
+1. 保存以当前的日期和时间命名的 bag
 
 ```bash
 rosrun axrosbag axrosbag -t
 ```
 
-2. 保存指定名称的bag到指定的目录下
+2. 保存指定名称的 bag 到指定的目录下
 
 ```bash
 rosrun axrosbag axrosbag -t -O /path/to/file.bag
-```
-
-### Call ros service
-
-该服务包含如下几个参数：
-
-filename - 设置bag包的名称和保存的目录
-
-topics - 若为空，则记录所有的topic
-
-start_time - 设置记录的起始ros time
-
-stop_time - 设置记录的终止ros time
-
-```bash
-$ rosservice call /trigger_record "filename: '/path/to/file.bag'
-topics:
-- ''
-start_time:
-  secs: 0
-  nsecs: 0
-stop_time:
-  secs: 0
-  nsecs: 0"
 ```
