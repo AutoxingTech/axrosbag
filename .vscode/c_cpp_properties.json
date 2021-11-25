@@ -1,0 +1,19 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "",
+        "limitSymbolsToIncludedHeaders": true
+      },
+      "includePath": [
+        "/home/simba/ax/axrosbag_ws/devel/include/**",
+        "/opt/ax/platform/include/**",
+        "/opt/ros/melodic/include/**",
+        "/home/simba/ax/axrosbag_ws/src/ax_rosbag/axrosbag/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS"
+    }
+  ],
+  "version": 4
+}

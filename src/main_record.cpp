@@ -4,6 +4,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include "commands.h"
 
 using namespace axrosbag;
 
@@ -112,36 +113,70 @@ bool parseVariablesMapClient(RecorderClientOptions& opts, po::variables_map cons
     return true;
 }
 
+int printHelp()
+{
+    printf("Syntax: axrosbag COMMAND [OPTIONS]\n"
+           "        axrosbag COMMAND --help\n"
+           "\n"
+           "COMMAND:\n"
+           "  daemon    Record message in background.\n"
+           "  write     Write recorded message in to file\n");
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
-    po::variables_map vm;
-    if (!parseOptions(vm, argc, argv))
-        return 1;
+    ArgParser parser;
+    parser.parse(argc, argv);
 
-    // Parse the command-line options
-    if (vm.count("trigger-write") || vm.count("pause") || vm.count("resume"))
+    std::shared_ptr<Subcommand> cmd = getCommand(parser);
+
+    // print help
+    if (cmd == nullptr)
     {
-        RecorderClientOptions client_opts;
-        if (!parseVariablesMapClient(client_opts, vm))
-            return 1;
-        ros::init(argc, argv, "axrosbag_client", ros::init_options::AnonymousName);
-        RecorderClient client;
-        return client.run(client_opts);
-    }
+        if (parser.hasArg("help", "h"))
+            return printHelp();
 
-    RecorderOptions opts;
-    if (!parseVariablesMap(opts, vm))
-        return 1;
-
-    ros::init(argc, argv, "axrosbag", ros::init_options::AnonymousName);
-    ros::NodeHandle private_nh("~");
-
-    if (opts.topics_.empty() && !opts.all_topics_)
-    {
-        ROS_FATAL("No topics selected.");
         return 1;
     }
 
-    Recorder rec(opts);
-    return rec.run();
+    // print help of subcommand
+    if (parser.hasArg("help", "h"))
+    {
+        cmd->printHelp();
+        return 0;
+    }
+
+    return cmd->run();
+
+    // po::variables_map vm;
+    // if (!parseOptions(vm, argc, argv))
+    //     return 1;
+
+    // // Parse the command-line options
+    // if (vm.count("trigger-write") || vm.count("pause") || vm.count("resume"))
+    // {
+    //     RecorderClientOptions client_opts;
+    //     if (!parseVariablesMapClient(client_opts, vm))
+    //         return 1;
+    //     ros::init(argc, argv, "axrosbag_client");
+    //     RecorderClient client;
+    //     return client.run(client_opts);
+    // }
+
+    // RecorderOptions opts;
+    // if (!parseVariablesMap(opts, vm))
+    //     return 1;
+
+    // ros::init(argc, argv, "axrosbag");
+    // ros::NodeHandle private_nh("~");
+
+    // if (opts.topics_.empty() && !opts.all_topics_)
+    // {
+    //     ROS_FATAL("No topics selected.");
+    //     return 1;
+    // }
+
+    // Recorder rec(opts);
+    // return rec.run();
 }
