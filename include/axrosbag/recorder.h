@@ -26,8 +26,7 @@ struct TopicOptions
 
     static const ros::Duration NO_DURATION_LIMIT;
     static const ros::Duration INHERIT_DURATION_LIMIT;
-
-    ros::Duration duration_limit_;
+    ros::Duration m_duration_limit;
 };
 
 struct RecorderOptions
@@ -35,21 +34,21 @@ struct RecorderOptions
     RecorderOptions(ros::Duration default_duration_limit = ros::Duration(300));
     bool addTopic(std::string const& topic, ros::Duration duration_limit = TopicOptions::INHERIT_DURATION_LIMIT);
 
-    ros::Duration default_duration_limit_;
-    bool all_topics_;
-    typedef std::map<std::string, TopicOptions> topics_t;
-    topics_t topics_;
-    rosbag::compression::CompressionType compression_;
+    ros::Duration m_duration_limit;
+    bool m_all_topics;
+    typedef std::map<std::string, TopicOptions> TopicsType;
+    TopicsType m_topics;
+    rosbag::compression::CompressionType m_compression;
 };
 
 struct OutgoingMessage
 {
-    OutgoingMessage(topic_tools::ShapeShifter::ConstPtr _msg, boost::shared_ptr<ros::M_string> _connection_header,
-                    ros::Time _time);
+    OutgoingMessage(topic_tools::ShapeShifter::ConstPtr msg, boost::shared_ptr<ros::M_string> connection_header,
+                    ros::Time time);
 
-    topic_tools::ShapeShifter::ConstPtr msg;
-    boost::shared_ptr<ros::M_string> connection_header;
-    ros::Time time;
+    topic_tools::ShapeShifter::ConstPtr m_msg;
+    boost::shared_ptr<ros::M_string> m_connection_header;
+    ros::Time m_time;
 };
 
 class Recorder;
@@ -60,21 +59,20 @@ class MessageQueue
 
 private:
     boost::mutex lock;
-    TopicOptions options_;
+    TopicOptions m_options;
 
-    size_t queue_size_;
-    typedef std::deque<OutgoingMessage> queue_t;
-    queue_t queue_;
+    size_t m_queue_size;
+    typedef std::deque<OutgoingMessage> QueueType;
+    QueueType m_queue;
 
-    boost::shared_ptr<ros::Subscriber> sub_;
+    boost::shared_ptr<ros::Subscriber> m_sub;
 
 public:
     explicit MessageQueue(TopicOptions const& options);
-
     void setSubscriber(boost::shared_ptr<ros::Subscriber> sub);
 
-    typedef std::pair<queue_t::const_iterator, queue_t::const_iterator> range_t;
-    range_t rangeFromTimes(ros::Time const& start, ros::Time const& end);
+    typedef std::pair<QueueType::const_iterator, QueueType::const_iterator> RangeType;
+    RangeType rangeFromTimes(ros::Time const& start, ros::Time const& end);
 
     bool checkQueue(ros::Time const& time);
     void _push(OutgoingMessage const& out_msg);
@@ -91,16 +89,16 @@ public:
     int run();
 
 private:
-    RecorderOptions options_;
-    typedef std::map<std::string, boost::shared_ptr<MessageQueue>> buffers_t;
-    buffers_t buffers_;
-    boost::upgrade_mutex state_lock_;
-    bool recording_;
-    bool writing_;
-    ros::NodeHandle nh_;
-    ros::ServiceServer trigger_record_server_;
-    ros::ServiceServer enable_server_;
-    ros::Timer poll_topic_timer_;
+    RecorderOptions m_options;
+    typedef std::map<std::string, boost::shared_ptr<MessageQueue>> BuffersType;
+    BuffersType m_buffers;
+    boost::upgrade_mutex m_state_lock;
+    bool m_recording;
+    bool m_writing;
+    ros::NodeHandle m_nh;
+    ros::ServiceServer m_trigger_record_server;
+    ros::ServiceServer m_enable_server;
+    ros::Timer m_poll_topic_timer;
 
     void fixTopicOptions(TopicOptions& options);
     bool postfixFilename(std::string& file);
@@ -128,10 +126,10 @@ struct RecorderClientOptions
         RESUME
     };
 
-    Action action_;
-    std::vector<std::string> topics_;
-    std::string filename_;
-    std::string prefix_;
+    Action m_action;
+    std::vector<std::string> m_topics;
+    std::string m_filename;
+    std::string m_prefix;
 };
 
 class RecorderClient
@@ -141,7 +139,7 @@ public:
     int run(RecorderClientOptions const& opts);
 
 private:
-    ros::NodeHandle nh_;
+    ros::NodeHandle m_nh;
 };
 
 } // namespace axrosbag

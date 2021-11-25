@@ -19,76 +19,76 @@ namespace axrosbag
 const ros::Duration TopicOptions::NO_DURATION_LIMIT = ros::Duration(-1);
 const ros::Duration TopicOptions::INHERIT_DURATION_LIMIT = ros::Duration(0);
 
-TopicOptions::TopicOptions(ros::Duration duration_limit) : duration_limit_(duration_limit)
+TopicOptions::TopicOptions(ros::Duration duration_limit) : m_duration_limit(duration_limit)
 {
 }
 
 RecorderOptions::RecorderOptions(ros::Duration default_duration_limit)
-    : default_duration_limit_(default_duration_limit), topics_(), compression_(rosbag::compression::Uncompressed)
+    : m_duration_limit(default_duration_limit), m_topics(), m_compression(rosbag::compression::Uncompressed)
 {
 }
 
 bool RecorderOptions::addTopic(std::string const& topic, ros::Duration duration)
 {
     TopicOptions ops(duration);
-    std::pair<topics_t::iterator, bool> ret;
-    ret = topics_.insert(topics_t::value_type(topic, ops));
+    std::pair<TopicsType::iterator, bool> ret;
+    ret = m_topics.insert(TopicsType::value_type(topic, ops));
     return ret.second;
 }
 
-OutgoingMessage::OutgoingMessage(topic_tools::ShapeShifter::ConstPtr _msg,
-                                 boost::shared_ptr<ros::M_string> _connection_header, ros::Time _time)
-    : msg(_msg), connection_header(_connection_header), time(_time)
+OutgoingMessage::OutgoingMessage(topic_tools::ShapeShifter::ConstPtr msg,
+                                 boost::shared_ptr<ros::M_string> connection_header, ros::Time time)
+    : m_msg(msg), m_connection_header(connection_header), m_time(time)
 {
 }
 
-MessageQueue::MessageQueue(TopicOptions const& options) : options_(options), queue_size_(0)
+MessageQueue::MessageQueue(TopicOptions const& options) : m_options(options), m_queue_size(0)
 {
 }
 
 void MessageQueue::setSubscriber(boost::shared_ptr<ros::Subscriber> sub)
 {
-    sub_ = sub;
+    m_sub = sub;
 }
 
-MessageQueue::range_t MessageQueue::rangeFromTimes(ros::Time const& start, ros::Time const& stop)
+MessageQueue::RangeType MessageQueue::rangeFromTimes(ros::Time const& start, ros::Time const& stop)
 {
-    range_t::first_type begin = queue_.begin();
-    range_t::second_type end = queue_.end();
+    RangeType::first_type begin = m_queue.begin();
+    RangeType::second_type end = m_queue.end();
 
     if (!start.isZero())
     {
-        while (begin != end && (*begin).time < start)
+        while (begin != end && (*begin).m_time < start)
             ++begin;
     }
     if (!stop.isZero())
     {
-        while (end != begin && (*(end - 1)).time > stop)
+        while (end != begin && (*(end - 1)).m_time > stop)
             --end;
     }
-    return range_t(begin, end);
+    return RangeType(begin, end);
 }
 
 bool MessageQueue::checkQueue(ros::Time const& time)
 {
-    if (!queue_.empty() && time < queue_.back().time)
+    if (!m_queue.empty() && time < m_queue.back().m_time)
     {
         ROS_WARN("Time has gone backwards, clearing buffer for this topic.");
-        queue_.clear();
-        queue_size_ = 0;
+        m_queue.clear();
+        m_queue_size = 0;
         return false;
     }
 
-    if (options_.duration_limit_ > TopicOptions::NO_DURATION_LIMIT && queue_.size() != 0)
+    if (m_options.m_duration_limit > TopicOptions::NO_DURATION_LIMIT && m_queue.size() != 0)
     {
-        ros::Duration dt = time - queue_.front().time;
-        while (dt > options_.duration_limit_)
+        ros::Duration dt = time - m_queue.front().m_time;
+        while (dt > m_options.m_duration_limit)
         {
             _pop();
-            if (queue_.empty())
+            if (m_queue.empty())
                 break;
 
-            dt = time - queue_.front().time;
+            dt = time - m_queue.front().m_time;
         }
     }
 
@@ -100,22 +100,22 @@ void MessageQueue::_push(OutgoingMessage const& out_msg)
     boost::mutex::scoped_try_lock l(lock);
     if (!l.owns_lock())
     {
-        ROS_ERROR("Failed to lock. Time %f", out_msg.time.toSec());
+        ROS_ERROR("Failed to lock. Time %f", out_msg.m_time.toSec());
         return;
     }
 
-    if (!checkQueue(out_msg.time))
+    if (!checkQueue(out_msg.m_time))
         return;
 
-    queue_.push_back(out_msg);
-    queue_size_ += out_msg.msg->size();
+    m_queue.push_back(out_msg);
+    m_queue_size += out_msg.m_msg->size();
 }
 
 OutgoingMessage MessageQueue::_pop()
 {
-    OutgoingMessage drop = queue_.front();
-    queue_.pop_front();
-    queue_size_ -= drop.msg->size();
+    OutgoingMessage drop = m_queue.front();
+    m_queue.pop_front();
+    m_queue_size -= drop.m_msg->size();
 
     return drop;
 }
@@ -123,26 +123,26 @@ OutgoingMessage MessageQueue::_pop()
 void MessageQueue::_clear()
 {
     boost::mutex::scoped_lock l(lock);
-    queue_.clear();
-    queue_size_ = 0;
+    m_queue.clear();
+    m_queue_size = 0;
 }
 
-Recorder::Recorder(RecorderOptions const& options) : options_(options), recording_(true), writing_(false)
+Recorder::Recorder(RecorderOptions const& options) : m_options(options), m_recording(true), m_writing(false)
 {
 }
 
 Recorder::~Recorder()
 {
-    for (std::pair<const std::string, boost::shared_ptr<MessageQueue>>& buffer : buffers_)
+    for (std::pair<const std::string, boost::shared_ptr<MessageQueue>>& buffer : m_buffers)
     {
-        buffer.second->sub_->shutdown();
+        buffer.second->m_sub->shutdown();
     }
 }
 
 void Recorder::fixTopicOptions(TopicOptions& options)
 {
-    if (options.duration_limit_ == TopicOptions::INHERIT_DURATION_LIMIT)
-        options.duration_limit_ = options_.default_duration_limit_;
+    if (options.m_duration_limit == TopicOptions::INHERIT_DURATION_LIMIT)
+        options.m_duration_limit = m_options.m_duration_limit;
 }
 
 bool Recorder::postfixFilename(std::string& file)
@@ -172,8 +172,8 @@ void Recorder::topicCB(const ros::MessageEvent<topic_tools::ShapeShifter const>&
                        boost::shared_ptr<MessageQueue> queue)
 {
     {
-        boost::shared_lock<boost::upgrade_mutex> lock(state_lock_);
-        if (!recording_)
+        boost::shared_lock<boost::upgrade_mutex> lock(m_state_lock);
+        if (!m_recording)
         {
             return;
         }
@@ -196,7 +196,7 @@ void Recorder::subscribe(std::string const& topic, boost::shared_ptr<MessageQueu
     ops.helper =
         boost::make_shared<ros::SubscriptionCallbackHelperT<const ros::MessageEvent<topic_tools::ShapeShifter const>&>>(
             boost::bind(&Recorder::topicCB, this, _1, queue));
-    *sub = nh_.subscribe(ops);
+    *sub = m_nh.subscribe(ops);
     queue->setSubscriber(sub);
 }
 
@@ -205,7 +205,7 @@ bool Recorder::writeTopic(rosbag::Bag& bag, MessageQueue& msg_queue, std::string
 {
     boost::mutex::scoped_lock l(msg_queue.lock);
 
-    MessageQueue::range_t range = msg_queue.rangeFromTimes(req.start_time, req.stop_time);
+    MessageQueue::RangeType range = msg_queue.rangeFromTimes(req.start_time, req.stop_time);
 
     if (!bag.isOpen() && range.second > range.first)
     {
@@ -224,10 +224,10 @@ bool Recorder::writeTopic(rosbag::Bag& bag, MessageQueue& msg_queue, std::string
 
     try
     {
-        for (MessageQueue::range_t::first_type msg_it = range.first; msg_it != range.second; ++msg_it)
+        for (MessageQueue::RangeType::first_type msg_it = range.first; msg_it != range.second; ++msg_it)
         {
             OutgoingMessage const& msg = *msg_it;
-            bag.write(topic, msg.time, msg.msg, msg.connection_header);
+            bag.write(topic, msg.m_time, msg.m_msg, msg.m_connection_header);
         }
     }
     catch (rosbag::BagException const& err)
@@ -247,12 +247,12 @@ bool Recorder::triggerRecordCB(TriggerRecord::Request& req, TriggerRecord::Respo
         res.message = "invalid";
         return true;
     }
-    bool recording_prior;
 
+    bool recording_prior;
     {
-        boost::upgrade_lock<boost::upgrade_mutex> read_lock(state_lock_);
-        recording_prior = recording_;
-        if (writing_)
+        boost::upgrade_lock<boost::upgrade_mutex> read_lock(m_state_lock);
+        recording_prior = m_recording;
+        if (m_writing)
         {
             res.success = false;
             res.message = "Already writing";
@@ -261,21 +261,21 @@ bool Recorder::triggerRecordCB(TriggerRecord::Request& req, TriggerRecord::Respo
         boost::upgrade_to_unique_lock<boost::upgrade_mutex> write_lock(read_lock);
         if (recording_prior)
             pause();
-        writing_ = true;
+        m_writing = true;
     }
 
-    BOOST_SCOPE_EXIT(&state_lock_, &writing_, recording_prior, this_)
+    BOOST_SCOPE_EXIT(&m_state_lock, &m_writing, recording_prior, this_)
     {
-        boost::unique_lock<boost::upgrade_mutex> write_lock(state_lock_);
+        boost::unique_lock<boost::upgrade_mutex> write_lock(m_state_lock);
 
-        writing_ = false;
+        m_writing = false;
         if (recording_prior)
             this_->resume();
     }
     BOOST_SCOPE_EXIT_END
 
     rosbag::Bag bag;
-    bag.setCompression(options_.compression_);
+    bag.setCompression(m_options.m_compression);
 
     // Write each selected topic's queue to bag file
     if (req.topics.size() && req.topics.at(0).size())
@@ -285,7 +285,7 @@ bool Recorder::triggerRecordCB(TriggerRecord::Request& req, TriggerRecord::Respo
             // Resolve and clean topic
             try
             {
-                topic = ros::names::resolve(nh_.getNamespace(), topic);
+                topic = ros::names::resolve(m_nh.getNamespace(), topic);
             }
             catch (ros::InvalidNameException const& err)
             {
@@ -294,9 +294,9 @@ bool Recorder::triggerRecordCB(TriggerRecord::Request& req, TriggerRecord::Respo
             }
 
             // Find the message queue for this topic if it exsists
-            buffers_t::iterator found = buffers_.find(topic);
+            BuffersType::iterator found = m_buffers.find(topic);
             // If topic not found, error and exit
-            if (found == buffers_.end())
+            if (found == m_buffers.end())
             {
                 ROS_WARN("Requested topic %s is not subscribed, skipping.", topic.c_str());
                 continue;
@@ -309,7 +309,7 @@ bool Recorder::triggerRecordCB(TriggerRecord::Request& req, TriggerRecord::Respo
     // If topic list empty, record all buffered topics
     else
     {
-        for (const buffers_t::value_type& pair : buffers_)
+        for (const BuffersType::value_type& pair : m_buffers)
         {
             MessageQueue& msg_queue = *(pair.second);
             std::string const& topic = pair.first;
@@ -331,26 +331,18 @@ bool Recorder::triggerRecordCB(TriggerRecord::Request& req, TriggerRecord::Respo
 
 void Recorder::pause()
 {
-    ROS_INFO("Buffering paused");
-    recording_ = false;
+    m_recording = false;
 }
 
 void Recorder::resume()
 {
-    for (const buffers_t::value_type& pair : buffers_)
-    {
-        pair.second->_clear();
-    }
-
-    recording_ = true;
-
-    ROS_INFO("Buffering resumed and old data cleared.");
+    m_recording = true;
 }
 
 bool Recorder::enableCB(std_srvs::SetBool::Request& req, std_srvs::SetBool::Response& res)
 {
-    boost::upgrade_lock<boost::upgrade_mutex> read_lock(state_lock_);
-    if (req.data && writing_)
+    boost::upgrade_lock<boost::upgrade_mutex> read_lock(m_state_lock);
+    if (req.data && m_writing)
     {
         res.success = false;
         res.message = "cannot enable recording while writing.";
@@ -358,12 +350,12 @@ bool Recorder::enableCB(std_srvs::SetBool::Request& req, std_srvs::SetBool::Resp
     }
 
     // Obtain write lock and update state if requested state is different from current
-    if (req.data && !recording_)
+    if (req.data && !m_recording)
     {
         boost::upgrade_to_unique_lock<boost::upgrade_mutex> write_lock(read_lock);
         resume();
     }
-    else if (!req.data && recording_)
+    else if (!req.data && m_recording)
     {
         boost::upgrade_to_unique_lock<boost::upgrade_mutex> write_lock(read_lock);
         pause();
@@ -387,7 +379,7 @@ void Recorder::pollTopics(ros::TimerEvent const& e, axrosbag::RecorderOptions* o
                 fixTopicOptions(topic_options);
                 boost::shared_ptr<MessageQueue> queue;
                 queue.reset(new MessageQueue(topic_options));
-                std::pair<buffers_t::iterator, bool> res = buffers_.insert(buffers_t::value_type(topic, queue));
+                std::pair<BuffersType::iterator, bool> res = m_buffers.insert(BuffersType::value_type(topic, queue));
                 ROS_ASSERT_MSG(res.second, "failed to add %s to topics. Perhaps it is a duplicate?", topic.c_str());
                 subscribe(topic, queue);
             }
@@ -401,35 +393,35 @@ void Recorder::pollTopics(ros::TimerEvent const& e, axrosbag::RecorderOptions* o
 
 int Recorder::run()
 {
-    if (!nh_.ok())
+    if (!m_nh.ok())
         return 0;
 
     // Create the queue for each topic and set up the subscriber to add to it on new messages
-    for (RecorderOptions::topics_t::value_type& pair : options_.topics_)
+    for (RecorderOptions::TopicsType::value_type& pair : m_options.m_topics)
     {
-        std::string topic = ros::names::resolve(nh_.getNamespace(), pair.first);
+        std::string topic = ros::names::resolve(m_nh.getNamespace(), pair.first);
         fixTopicOptions(pair.second);
         boost::shared_ptr<MessageQueue> queue;
         queue.reset(new MessageQueue(pair.second));
-        std::pair<buffers_t::iterator, bool> res = buffers_.insert(buffers_t::value_type(topic, queue));
+        std::pair<BuffersType::iterator, bool> res = m_buffers.insert(BuffersType::value_type(topic, queue));
         ROS_ASSERT_MSG(res.second, "failed to add %s to topics. Perhaps it is a duplicate?", topic.c_str());
         subscribe(topic, queue);
     }
 
-    trigger_record_server_ = nh_.advertiseService("trigger_record", &Recorder::triggerRecordCB, this);
-    enable_server_ = nh_.advertiseService("enable_record_", &Recorder::enableCB, this);
+    m_trigger_record_server = m_nh.advertiseService("trigger_record", &Recorder::triggerRecordCB, this);
+    m_enable_server = m_nh.advertiseService("enable_record", &Recorder::enableCB, this);
 
     // Start timer to poll ROS master for topics
-    if (options_.all_topics_)
-        poll_topic_timer_ =
-            nh_.createTimer(ros::Duration(1.0), boost::bind(&Recorder::pollTopics, this, _1, &options_));
+    if (m_options.m_all_topics)
+        m_poll_topic_timer =
+            m_nh.createTimer(ros::Duration(1.0), boost::bind(&Recorder::pollTopics, this, _1, &m_options));
 
     ros::spin();
 
     return 0;
 }
 
-RecorderClientOptions::RecorderClientOptions() : action_(RecorderClientOptions::TRIGGER_WRITE)
+RecorderClientOptions::RecorderClientOptions() : m_action(RecorderClientOptions::TRIGGER_WRITE)
 {
 }
 
@@ -439,27 +431,27 @@ RecorderClient::RecorderClient()
 
 int RecorderClient::run(RecorderClientOptions const& opts)
 {
-    if (opts.action_ == RecorderClientOptions::TRIGGER_WRITE)
+    if (opts.m_action == RecorderClientOptions::TRIGGER_WRITE)
     {
-        ros::ServiceClient client = nh_.serviceClient<TriggerRecord>("trigger_record");
+        ros::ServiceClient client = m_nh.serviceClient<TriggerRecord>("trigger_record");
         if (!client.exists())
         {
             ROS_ERROR("Service %s does not exist. Is record running in this namespace?", "trigger_record");
             return 1;
         }
         TriggerRecordRequest req;
-        req.topics = opts.topics_;
+        req.topics = opts.m_topics;
 
-        if (opts.filename_.empty())
+        if (opts.m_filename.empty())
         {
-            req.filename = opts.prefix_;
+            req.filename = opts.m_prefix;
             size_t ind = req.filename.rfind(".bag");
             if (ind != std::string::npos && ind == req.filename.size() - 4)
                 req.filename.erase(ind);
         }
         else
         {
-            req.filename = opts.filename_;
+            req.filename = opts.m_filename;
             size_t ind = req.filename.rfind(".bag");
             if (ind == std::string::npos || ind != req.filename.size() - 4)
                 req.filename += ".bag";
@@ -483,16 +475,16 @@ int RecorderClient::run(RecorderClientOptions const& opts)
         }
         return 0;
     }
-    else if (opts.action_ == RecorderClientOptions::PAUSE || opts.action_ == RecorderClientOptions::RESUME)
+    else if (opts.m_action == RecorderClientOptions::PAUSE || opts.m_action == RecorderClientOptions::RESUME)
     {
-        ros::ServiceClient client = nh_.serviceClient<std_srvs::SetBool>("enable_record_");
+        ros::ServiceClient client = m_nh.serviceClient<std_srvs::SetBool>("enable_record");
         if (!client.exists())
         {
-            ROS_ERROR("Service %s does not exist. Is record running in this namespace?", "enable_record_");
+            ROS_ERROR("Service %s does not exist. Is record running in this namespace?", "enable_record");
             return 1;
         }
         std_srvs::SetBoolRequest req;
-        req.data = (opts.action_ == RecorderClientOptions::RESUME);
+        req.data = (opts.m_action == RecorderClientOptions::RESUME);
         std_srvs::SetBoolResponse res;
         if (!client.call(req, res))
         {

@@ -77,18 +77,18 @@ bool parseVariablesMap(RecorderOptions& opts, po::variables_map const& vm)
     }
 
     if (vm.count("duration"))
-        opts.default_duration_limit_ = ros::Duration(vm["duration"].as<double>());
+        opts.m_duration_limit = ros::Duration(vm["duration"].as<double>());
     else
-        opts.default_duration_limit_ = ros::Duration(300); // -d not specified，default 300s
+        opts.m_duration_limit = ros::Duration(300); // -d not specified，default 300s
 
-    opts.all_topics_ = vm.count("topic") ? false : true;
+    opts.m_all_topics = vm.count("topic") ? false : true;
 
     if (vm.count("lz4"))
-        opts.compression_ = rosbag::compression::LZ4;
+        opts.m_compression = rosbag::compression::LZ4;
     else if (vm.count("bz2"))
-        opts.compression_ = rosbag::compression::BZ2;
+        opts.m_compression = rosbag::compression::BZ2;
     else
-        opts.compression_ = rosbag::compression::LZ4; // --lz4 or --bz2 not specified，default lz4
+        opts.m_compression = rosbag::compression::LZ4; // --lz4 or --bz2 not specified，default lz4
 
     return true;
 }
@@ -96,18 +96,18 @@ bool parseVariablesMap(RecorderOptions& opts, po::variables_map const& vm)
 bool parseVariablesMapClient(RecorderClientOptions& opts, po::variables_map const& vm)
 {
     if (vm.count("pause"))
-        opts.action_ = RecorderClientOptions::PAUSE;
+        opts.m_action = RecorderClientOptions::PAUSE;
     else if (vm.count("resume"))
-        opts.action_ = RecorderClientOptions::RESUME;
+        opts.m_action = RecorderClientOptions::RESUME;
     else if (vm.count("trigger-write"))
     {
-        opts.action_ = RecorderClientOptions::TRIGGER_WRITE;
+        opts.m_action = RecorderClientOptions::TRIGGER_WRITE;
         if (vm.count("topic"))
-            opts.topics_ = vm["topic"].as<std::vector<std::string>>();
+            opts.m_topics = vm["topic"].as<std::vector<std::string>>();
         if (vm.count("output-prefix"))
-            opts.prefix_ = vm["output-prefix"].as<std::string>();
+            opts.m_prefix = vm["output-prefix"].as<std::string>();
         if (vm.count("output-filename"))
-            opts.filename_ = vm["output-filename"].as<std::string>();
+            opts.m_filename = vm["output-filename"].as<std::string>();
     }
     return true;
 }
@@ -124,7 +124,7 @@ int main(int argc, char** argv)
         RecorderClientOptions client_opts;
         if (!parseVariablesMapClient(client_opts, vm))
             return 1;
-        ros::init(argc, argv, "axrosbag_client", ros::init_options::AnonymousName);
+        ros::init(argc, argv, "axrosbag_client");
         RecorderClient client;
         return client.run(client_opts);
     }
@@ -133,10 +133,10 @@ int main(int argc, char** argv)
     if (!parseVariablesMap(opts, vm))
         return 1;
 
-    ros::init(argc, argv, "axrosbag", ros::init_options::AnonymousName);
+    ros::init(argc, argv, "axrosbag");
     ros::NodeHandle private_nh("~");
 
-    if (opts.topics_.empty() && !opts.all_topics_)
+    if (opts.m_topics.empty() && !opts.m_all_topics)
     {
         ROS_FATAL("No topics selected.");
         return 1;
