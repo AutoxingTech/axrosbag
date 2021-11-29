@@ -1,11 +1,4 @@
-#include <rosbag/exceptions.h>
-#include <boost/program_options.hpp>
-#include <sstream>
-#include <string>
-#include <vector>
 #include "commands.h"
-
-namespace po = boost::program_options;
 
 int printHelp()
 {

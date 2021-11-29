@@ -2,7 +2,6 @@
 
 #include <string>
 #include <vector>
-#include "nc_argparse.h"
 #include <memory>
 #include <deque>
 #include <unordered_set>
@@ -14,6 +13,7 @@
 #include <rosbag/bag.h>
 #include <topic_tools/shape_shifter.h>
 
+#include "nc_argparse.h"
 #include "axrosbag/TriggerRecord.h"
 
 using namespace axrosbag;

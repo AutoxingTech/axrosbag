@@ -46,7 +46,7 @@ bool DeamonCommand::checkQueue(ros::Time& time)
 {
     if (m_buffer.size() > 0 && time < m_buffer.back().m_time)
     {
-        ROS_WARN_STREAM("Time has gone backwards, clearing buffer for this topic.");
+        ROS_WARN("Time has gone backwards, clearing buffer for this topic.");
         // m_buffer.clear();
         return false;
     }
@@ -54,7 +54,7 @@ bool DeamonCommand::checkQueue(ros::Time& time)
     if (m_buffer.size() > 0)
     {
         float dt = (time - m_buffer.front().m_time).toSec();
-        while (dt > m_timeLimit)
+        while (dt >= m_timeLimit)
         {
             m_buffer.pop_front();
             dt = (time - m_buffer.front().m_time).toSec();
@@ -110,7 +110,6 @@ void DeamonCommand::pollTopics()
     }
 }
 
-// client.call
 bool DeamonCommand::triggerRecordCB(TriggerRecord::Request& req, TriggerRecord::Response& res)
 {
     rosbag::Bag bag;
