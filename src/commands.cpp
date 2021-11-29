@@ -54,7 +54,7 @@ bool DeamonCommand::checkQueue(ros::Time& time)
     if (m_buffer.size() > 0)
     {
         float dt = (time - m_buffer.front().m_time).toSec();
-        while (dt >= m_timeLimit)
+        while (dt > m_timeLimit)
         {
             m_buffer.pop_front();
             dt = (time - m_buffer.front().m_time).toSec();
