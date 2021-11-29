@@ -1,29 +1,29 @@
 ### Axrosbag
 
-The axrosbag node may run in the background, and you can save buffer data from the recent past to disk via command line or ros service.
+The axrosbag node(daemon command) may run in the background, and you can save buffer data from the recent past to disk via write command.
 
-### Run
+### Daemon Command
 
-本程序默认记录所有 topic，默认以 lz4 格式压缩 bag，默认 buffer 时长为 300s;同时，也支持 --topic, --lz4 (bz2), -d 指定参数
+参数 -a(--all) 表示记录所有 topic， 如果未加 -a 选项, 必须指定记录哪些topic; 默认 buffer 时长为 300s，也支持参数 --limit 60, 即指定buffer时长60s.
 
 ```bash
-rosrun axrosbag axrosbag
+rosrun axrosbag axrosbag daemon -a
+
+rosrun axrosbag axrosbag daemon /imu /odom
+
+rosrun axrosbag axrosbag daemon -a --limit 60
 ```
 or
 ```bash
-./devel/lib/axrosbag/axrosbag
+./devel/lib/axrosbag/axrosbag daemon -a
 ```
 
-### Command line interface
+### Write Command
 
-1. 保存以当前的日期和时间命名的 bag, 默认保存在当前目录
-
-```bash
-rosrun axrosbag axrosbag -t
-```
-
-2. 保存指定名称的 bag 到指定的目录下
+参数 -f 必须指定完整的保存路径和bag名; 默认以 lz4 格式压缩 bag， 也支持 bz2 格式.
 
 ```bash
-rosrun axrosbag axrosbag -t -O /path/to/file.bag
+rosrun axrosbag axrosbag write -f /path/to/file.bag
+
+rosrun axrosbag axrosbag write -f /path/to/file.bag --bz2  # 建议采用默认的lz4格式，写文件速度更快
 ```

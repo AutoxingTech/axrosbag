@@ -7,7 +7,7 @@
 #include <queue>
 #include <ros/assert.h>
 #include <ros/ros.h>
-#include <axrosbag/recorder.h>
+// #include <axrosbag/recorder.h>
 #include <string>
 #include <time.h>
 #include <topic_tools/shape_shifter.h>
