@@ -319,6 +319,9 @@ std::shared_ptr<Subcommand> getCommand(ArgParser& parser)
         cmd = std::make_shared<WriteCommand>();
     }
 
+    if (parser.getArg("help", "h"))
+        return cmd;
+
     if (!cmd->parseArguments(parser))
         return nullptr;
 
