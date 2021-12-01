@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include <list>
 #include <mutex>
+#include <map>
 
 #include <ros/ros.h>
 #include <ros/time.h>
@@ -63,6 +64,7 @@ private:
     ros::NodeHandle m_nh;
     ros::Timer m_pollTopicTimer;
     std::deque<OutgoingMessage> m_buffer;
+    std::map<std::string, OutgoingMessage> m_latchedMsgs;
     std::unordered_set<std::string> m_checkTopics;
     std::list<ros::Subscriber> m_subscribers;
     ros::ServiceServer m_triggerServer;

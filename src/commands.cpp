@@ -72,7 +72,17 @@ void DeamonCommand::topicCB(const std::string& topic,
     if (!checkQueue(recv_time))
         return;
 
-    m_buffer.push_back({topic, recv_time, msg_event.getMessage(), msg_event.getConnectionHeaderPtr()});
+    OutgoingMessage msg{topic, recv_time, msg_event.getMessage(), msg_event.getConnectionHeaderPtr()};
+    m_buffer.push_back(msg);
+
+    if (msg.m_connectionHeader)
+    {
+        auto it = msg.m_connectionHeader->find("latching");
+        if (it != msg.m_connectionHeader->end() && it->second == "1")
+        {
+            m_latchedMsgs[msg.m_topic] = msg;
+        }
+    }
 }
 
 void DeamonCommand::subscribeTopic(std::string& topic)
@@ -128,20 +138,30 @@ bool DeamonCommand::triggerRecordCB(TriggerRecord::Request& req, TriggerRecord::
         bag.setCompression(rosbag::compression::Uncompressed);
     }
 
-    std::deque<OutgoingMessage> out;
+    std::deque<OutgoingMessage> normal_msgs;
     m_mutex.lock();
-    out = m_buffer; // copy buffer
+    normal_msgs = m_buffer; // copy buffer
+    auto latched_msgs = m_latchedMsgs;
     m_mutex.unlock();
 
-    for (auto& msg : out)
+    for (auto& lm : latched_msgs)
     {
-        if (!writeTopic(bag, msg, req, res))
+        if (!writeTopic(bag, lm.second, req, res))
         {
             res.success = false;
             return false;
         }
     }
-    out.clear();
+
+    for (auto& nm : normal_msgs)
+    {
+        if (!writeTopic(bag, nm, req, res))
+        {
+            res.success = false;
+            return false;
+        }
+    }
+    normal_msgs.clear();
 
     if (!bag.isOpen())
     {
