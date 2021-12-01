@@ -1,7 +1,5 @@
 string filename
-string[] topics
-time start_time
-time stop_time
+uint8 compression
 ---
 bool success
 string NO_DATA_MESSAGE=no messages buffered on selected topics
