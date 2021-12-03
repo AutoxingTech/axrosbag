@@ -27,8 +27,6 @@ DeamonCommand::DeamonCommand()
 
 DeamonCommand::~DeamonCommand()
 {
-    m_killTerminal = true;
-
     {
         std::lock_guard<std::mutex> lg(m_writeMutex);
         m_writer.m_readyWrite = true;
@@ -194,7 +192,7 @@ bool DeamonCommand::writeTopic(rosbag::Bag& bag, const OutgoingMessage& msg, Tri
 
 void DeamonCommand::writeFile()
 {
-    while (ros::ok() && !m_killTerminal)
+    while (ros::ok())
     {
         std::unique_lock<std::mutex> lg(m_writeMutex);
         m_cv.wait(lg, [this]() { return m_writer.m_readyWrite; });

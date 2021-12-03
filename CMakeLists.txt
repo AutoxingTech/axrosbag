@@ -38,6 +38,7 @@ include_directories(${catkin_INCLUDE_DIRS})
 add_executable(${PROJECT_NAME} 
   src/main_record.cpp
   src/nc_argparse.cpp
+  src/resetable_event.cpp
   src/commands.cpp
 )
 
