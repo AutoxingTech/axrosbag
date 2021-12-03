@@ -6,36 +6,20 @@
 #include <deque>
 #include <unordered_set>
 #include <list>
-#include <mutex>
 #include <map>
-#include <malloc.h>
 #include <thread>
-#include <condition_variable>
 
 #include <ros/ros.h>
 #include <ros/time.h>
 #include <rosbag/bag.h>
 #include <topic_tools/shape_shifter.h>
 
-#include "nc_argparse.h"
+#include "mutex.h"
+#include "resetable_event.h"
 #include "axrosbag/TriggerRecord.h"
+#include "command_base.h"
 
 using namespace axrosbag;
-
-enum class CompressionType
-{
-    none,
-    bz2,
-    lz4
-};
-
-enum class RunMode
-{
-    daemon, // background daemon
-    write
-};
-
-bool parseTopics(ArgParser& parser, bool* allTopicsOut, std::vector<std::string>* topicsOut);
 
 struct OutgoingMessage
 {
@@ -53,11 +37,12 @@ struct BagWriter
     bool m_readyWrite;
 };
 
-class DeamonCommand : public Subcommand
+class DeamonCommand : public CommandBase
 {
 public:
     DeamonCommand();
     ~DeamonCommand();
+
     void printHelp() override;
     bool parseArguments(ArgParser& parse) override;
     int run() override;
@@ -77,32 +62,18 @@ private:
     float m_timeLimit = 300;
     ros::NodeHandle m_nh;
     ros::Timer m_pollTopicTimer;
-    std::deque<OutgoingMessage> m_buffer;
-    std::map<std::string, OutgoingMessage> m_latchedMsgs;
+
+    nc::Mutex m_bufferMutex;
+    std::deque<OutgoingMessage> m_buffer GUARDED_BY(m_bufferMutex);
+    std::map<std::string, OutgoingMessage> m_latchedMsgs GUARDED_BY(m_bufferMutex);
+
     std::unordered_set<std::string> m_checkTopics;
     std::list<ros::Subscriber> m_subscribers;
     ros::ServiceServer m_triggerServer;
-    std::mutex m_daemonMutex;
+
+    ResetableEvent m_event;
+
     BagWriter m_writer;
-    std::condition_variable m_cv;
-    std::mutex m_writeMutex;
-    bool m_killTerminal = false;
+
     std::thread m_writeThread;
 };
-
-class WriteCommand : public Subcommand
-{
-public:
-    void printHelp() override;
-    bool parseArguments(ArgParser& parse) override;
-    int run() override;
-
-private:
-    std::string m_filename;
-    std::vector<std::string> m_topics;
-    bool m_allTopics;
-    CompressionType m_compressType = CompressionType::none;
-    ros::NodeHandle m_nh;
-};
-
-std::shared_ptr<Subcommand> getCommand(ArgParser& parser);

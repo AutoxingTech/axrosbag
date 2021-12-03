@@ -1,3 +1,5 @@
+> **Warning:** A work in progress. Please don't use it until the first version is release.
+
 ### Axrosbag
 
 When bad things happen, it's usually too late to start recording with `rosbag record`.
