@@ -6,7 +6,6 @@
 #include <deque>
 #include <unordered_set>
 #include <list>
-#include <mutex>
 #include <map>
 #include <malloc.h>
 #include <thread>
@@ -16,6 +15,8 @@
 #include <ros/time.h>
 #include <rosbag/bag.h>
 #include <topic_tools/shape_shifter.h>
+#include "mutex.h"
+#include "resetable_event.h"
 
 #include "nc_argparse.h"
 #include "axrosbag/TriggerRecord.h"
@@ -34,8 +35,6 @@ enum class RunMode
     daemon, // background daemon
     write
 };
-
-bool parseTopics(ArgParser& parser, bool* allTopicsOut, std::vector<std::string>* topicsOut);
 
 struct OutgoingMessage
 {
@@ -77,15 +76,19 @@ private:
     float m_timeLimit = 300;
     ros::NodeHandle m_nh;
     ros::Timer m_pollTopicTimer;
-    std::deque<OutgoingMessage> m_buffer;
-    std::map<std::string, OutgoingMessage> m_latchedMsgs;
+
+    nc::Mutex m_bufferMutex;
+    std::deque<OutgoingMessage> m_buffer GUARDED_BY(m_bufferMutex);
+    std::map<std::string, OutgoingMessage> m_latchedMsgs GUARDED_BY(m_bufferMutex);
+    
     std::unordered_set<std::string> m_checkTopics;
     std::list<ros::Subscriber> m_subscribers;
     ros::ServiceServer m_triggerServer;
-    std::mutex m_daemonMutex;
+
+    ResetableEvent m_event;
+
     BagWriter m_writer;
-    std::condition_variable m_cv;
-    std::mutex m_writeMutex;
+
     std::thread m_writeThread;
 };
 

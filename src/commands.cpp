@@ -1,8 +1,11 @@
 #include "commands.h"
 
 using namespace std;
+using namespace nc;
 
-bool parseTopics(ArgParser& parser, bool* allTopicsOut, std::vector<std::string>* topicsOut)
+namespace
+{
+bool _parseTopics(ArgParser& parser, bool* allTopicsOut, std::vector<std::string>* topicsOut)
 {
     *allTopicsOut = parser.hasArg("all", "a");
     topicsOut->clear();
@@ -20,18 +23,15 @@ bool parseTopics(ArgParser& parser, bool* allTopicsOut, std::vector<std::string>
 
     return true;
 }
+} // namespace
 
-DeamonCommand::DeamonCommand()
+DeamonCommand::DeamonCommand() : m_event(false, true)
 {
 }
 
 DeamonCommand::~DeamonCommand()
 {
-    {
-        std::lock_guard<std::mutex> lg(m_writeMutex);
-        m_writer.m_readyWrite = true;
-        m_cv.notify_one();
-    }
+    m_event.set();
 
     if (m_writeThread.joinable())
         m_writeThread.join();
@@ -54,7 +54,7 @@ void DeamonCommand::printHelp()
 
 bool DeamonCommand::parseArguments(ArgParser& parser)
 {
-    if (!parseTopics(parser, &m_allTopics, &m_topics))
+    if (!_parseTopics(parser, &m_allTopics, &m_topics))
         return false;
 
     parser.setDefault("limit", "300");
@@ -88,8 +88,6 @@ bool DeamonCommand::checkQueue(ros::Time& time)
 void DeamonCommand::topicCB(const std::string& topic,
                             const ros::MessageEvent<topic_tools::ShapeShifter const>& msg_event)
 {
-    std::lock_guard<std::mutex> lg(m_daemonMutex);
-
     ros::Time recv_time = ros::Time::now();
     OutgoingMessage msg{topic, recv_time, msg_event.getMessage(), msg_event.getConnectionHeaderPtr()};
 
@@ -98,13 +96,20 @@ void DeamonCommand::topicCB(const std::string& topic,
         auto it = msg.m_connectionHeader->find("latching");
         if (it != msg.m_connectionHeader->end() && it->second == "1")
         {
-            m_latchedMsgs[msg.m_topic] = msg;
+            {
+                nc::LockGuard lg(m_bufferMutex);
+                m_latchedMsgs[msg.m_topic] = msg;
+            }
         }
         else
         {
             if (!checkQueue(msg.m_time))
                 return;
-            m_buffer.push_back(msg);
+
+            {
+                nc::LockGuard lg(m_bufferMutex);
+                m_buffer.push_back(msg);
+            }
         }
     }
 }
@@ -156,9 +161,12 @@ bool DeamonCommand::writeTopic(rosbag::Bag& bag, const OutgoingMessage& msg, Tri
             // first write latched topics
             if (!m_latchedMsgs.empty())
             {
-                m_daemonMutex.lock();
-                auto latched_msgs = m_latchedMsgs;
-                m_daemonMutex.unlock();
+                std::map<std::string, OutgoingMessage> latched_msgs;
+                {
+                    LockGuard lg(m_bufferMutex);
+                    latched_msgs = m_latchedMsgs;
+                }
+
                 for (auto& lm : latched_msgs)
                 {
                     bag.write(lm.first, m_writer.m_startTime, lm.second.m_topicMsg, lm.second.m_connectionHeader);
@@ -194,8 +202,12 @@ void DeamonCommand::writeFile()
 {
     while (ros::ok())
     {
-        std::unique_lock<std::mutex> lg(m_writeMutex);
-        m_cv.wait(lg, [this]() { return m_writer.m_readyWrite; });
+        m_event.wait();
+
+        if (!ros::ok())
+        {
+            break;
+        }
 
         rosbag::Bag bag;
         if (m_writer.m_req.compression == 2)
@@ -213,9 +225,11 @@ void DeamonCommand::writeFile()
             bag.setCompression(rosbag::compression::Uncompressed);
         }
 
-        m_daemonMutex.lock();
-        auto normal_msgs = m_buffer;
-        m_daemonMutex.unlock();
+        std::deque<OutgoingMessage> normal_msgs;
+        {
+            LockGuard lg(m_bufferMutex);
+            normal_msgs = m_buffer;
+        }
 
         for (auto& nm : normal_msgs)
         {
@@ -226,7 +240,6 @@ void DeamonCommand::writeFile()
         normal_msgs.shrink_to_fit();
 
         m_writer.m_readyWrite = false;
-        lg.unlock();
     }
 }
 
@@ -237,14 +250,13 @@ bool DeamonCommand::triggerRecordCB(TriggerRecord::Request& req, TriggerRecord::
         ROS_WARN("The last time to write file is not over yet!");
         return false;
     }
-    std::lock_guard<std::mutex> lg(m_writeMutex);
 
     res.success = true;
     m_writer.m_startTime = m_buffer.front().m_time;
     m_writer.m_req = req;
     m_writer.m_res = res;
     m_writer.m_readyWrite = true;
-    m_cv.notify_one();
+    m_event.set();
 
     return true;
 }
@@ -295,7 +307,7 @@ void WriteCommand::printHelp()
 
 bool WriteCommand::parseArguments(ArgParser& parser)
 {
-    if (!parseTopics(parser, &m_allTopics, &m_topics))
+    if (!_parseTopics(parser, &m_allTopics, &m_topics))
         return false;
 
     const char* filename = parser.getArg("f");

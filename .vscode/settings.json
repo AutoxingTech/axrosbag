@@ -8,5 +8,9 @@
         "/home/simba/ax/axrosbag_ws/devel/lib/python2.7/dist-packages",
         "/opt/ax/platform/lib/python2.7/dist-packages",
         "/opt/ros/melodic/lib/python2.7/dist-packages"
-    ]
+    ],
+    "files.associations": {
+        "condition_variable": "cpp",
+        "thread": "cpp"
+    }
 }
