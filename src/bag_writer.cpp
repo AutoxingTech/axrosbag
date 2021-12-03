@@ -43,6 +43,11 @@ bool BagWriter::writeIntoFile(const std::string& filename, CompressionType compr
             for (auto& msg : m_latchedMsgs)
             {
                 m_bag.write(msg.first, startTime, msg.second.topicMsg, msg.second.connectionHeader);
+                if (!ros::ok())
+                {
+                    m_error = std::string("write cancelled");
+                    return false;
+                }
             }
         }
 
@@ -50,6 +55,11 @@ bool BagWriter::writeIntoFile(const std::string& filename, CompressionType compr
         for (auto& msg : m_messages)
         {
             m_bag.write(msg.topic, msg.recvTime, msg.topicMsg, msg.connectionHeader);
+            if (!ros::ok())
+            {
+                m_error = std::string("write cancelled");
+                return false;
+            }
         }
     }
     catch (rosbag::BagException const& err)
