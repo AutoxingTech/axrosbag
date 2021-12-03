@@ -3,27 +3,18 @@
 #include <string>
 #include <vector>
 #include <ros/ros.h>
-#include <ros/time.h>
-#include <rosbag/bag.h>
-#include <topic_tools/shape_shifter.h>
-#include "mutex.h"
-#include "resetable_event.h"
 #include "command_base.h"
 
 #include "axrosbag/TriggerRecord.h"
+#include "common_types.h"
 
 using namespace axrosbag;
-
-enum class CompressionType
-{
-    none = 0,
-    bz2 = 1,
-    lz4 = 2
-};
 
 class WriteCommand : public CommandBase
 {
 public:
+    WriteCommand() : m_nh("~") {}
+
     void printHelp() override;
     bool parseArguments(ArgParser& parse) override;
     int run() override;
@@ -35,5 +26,3 @@ private:
     CompressionType m_compressType = CompressionType::none;
     ros::NodeHandle m_nh;
 };
-
-std::shared_ptr<Subcommand> getCommand(ArgParser& parser);
