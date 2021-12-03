@@ -10,7 +10,10 @@
             "request": "launch",
             "program": "${workspaceFolder}/../../devel/lib/axrosbag/axrosbag",
             "args": [
-                "daemon"
+                "daemon",
+                "-a",
+                "--limit",
+                "10"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

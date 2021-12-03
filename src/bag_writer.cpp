@@ -31,18 +31,13 @@ bool BagWriter::writeIntoFile(const std::string& filename, CompressionType compr
     {
 
         // first write latched topics
-        if (!m_latchedMsgs.empty())
+        if (!m_latchedMsgs.empty() && !m_messages.empty())
         {
-            ros::Time startTime;
-            for (auto& msg : m_latchedMsgs)
-            {
-                startTime = msg.second.recvTime;
-                break;
-            }
+            ros::Time startTime = m_messages.front().recvTime;
 
             for (auto& msg : m_latchedMsgs)
             {
-                m_bag.write(msg.first, startTime, msg.second.topicMsg, msg.second.connectionHeader);
+                m_bag.write(msg.second.topic, startTime, msg.second.topicMsg, msg.second.connectionHeader);
                 if (!ros::ok())
                 {
                     m_error = std::string("write cancelled");

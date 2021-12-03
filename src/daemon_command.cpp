@@ -57,9 +57,20 @@ void DeamonCommand::removeMessageTimer(const ros::TimerEvent& /* e */)
     {
         const ros::Time& recvTime = m_buffer[i].recvTime;
         float dt = (now - recvTime).toSec();
-        while (dt < m_timeLimit)
+        if (dt < m_timeLimit)
         {
             break;
+        }
+
+        // keep latched messages
+        const auto& connectionHeader = m_buffer[i].connectionHeader;
+        if (connectionHeader)
+        {
+            auto it = connectionHeader->find("latching");
+            if (it != connectionHeader->end())
+            {
+                m_latchedMsgs[m_buffer[i].topic] = m_buffer[i];
+            }
         }
     }
 
@@ -73,20 +84,8 @@ void DeamonCommand::topicCallback(const std::string& topic,
     ros::Time recvTime = ros::Time::now();
     OutgoingMessage msg{topic, recvTime, msgEvent.getMessage(), msgEvent.getConnectionHeaderPtr()};
 
-    if (msg.connectionHeader)
-    {
-        auto it = msg.connectionHeader->find("latching");
-        if (it != msg.connectionHeader->end() && it->second == "1")
-        {
-            nc::LockGuard lg(m_bufferMutex);
-            m_latchedMsgs[msg.topic] = msg;
-        }
-        else
-        {
-            nc::LockGuard lg(m_bufferMutex);
-            m_buffer.push_back(msg);
-        }
-    }
+    nc::LockGuard lg(m_bufferMutex);
+    m_buffer.push_back(msg);
 }
 
 void DeamonCommand::subscribeTopic(std::string& topic)
@@ -150,12 +149,12 @@ int DeamonCommand::run()
         return 1;
 
     m_triggerServer = m_asyncHandle.advertiseService("/axrosbag/write", &DeamonCommand::writeServiceCallback, this);
+    m_removeMessageTimer = m_nh.createTimer(ros::Duration(1), &DeamonCommand::removeMessageTimer, this);
 
     if (m_allTopics)
     {
         printf("recoding all topics\n");
         m_pollTopicTimer = m_nh.createTimer(ros::Duration(1.0), &DeamonCommand::pollTopicsTimer, this);
-        m_removeMessageTimer = m_nh.createTimer(ros::Duration(1.0), &DeamonCommand::removeMessageTimer, this);
     }
     else
     {
