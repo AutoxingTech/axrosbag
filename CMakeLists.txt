@@ -39,7 +39,9 @@ add_executable(${PROJECT_NAME}
   src/main_record.cpp
   src/nc_argparse.cpp
   src/resetable_event.cpp
-  src/commands.cpp
+  src/write_command.cpp
+  src/daemon_command.cpp
+  src/command_base.cpp
 )
 
 add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)

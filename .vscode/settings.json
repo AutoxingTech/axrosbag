@@ -11,6 +11,8 @@
     ],
     "files.associations": {
         "condition_variable": "cpp",
-        "thread": "cpp"
+        "thread": "cpp",
+        "string": "cpp",
+        "vector": "cpp"
     }
 }
