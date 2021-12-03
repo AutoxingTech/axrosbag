@@ -21,6 +21,26 @@ bool parseTopics(ArgParser& parser, bool* allTopicsOut, std::vector<std::string>
     return true;
 }
 
+DeamonCommand::DeamonCommand()
+{
+}
+
+DeamonCommand::~DeamonCommand()
+{
+    {
+        std::lock_guard<std::mutex> lg(m_writeMutex);
+        m_writer.m_readyWrite = true;
+        m_cv.notify_one();
+    }
+
+    for (auto& sub : m_subscribers)
+    {
+        sub.shutdown();
+    }
+
+    m_killTerminal = true;
+}
+
 void DeamonCommand::printHelp()
 {
     printf("Syntax: axrosbag daemon [OPTIONS] <TOPIC1> <TOPIC2> ...\n"
@@ -44,14 +64,14 @@ bool DeamonCommand::parseArguments(ArgParser& parser)
 
 bool DeamonCommand::checkQueue(ros::Time& time)
 {
-    if (m_buffer.size() > 0 && time < m_buffer.back().m_time)
+    if (!m_buffer.empty() && time < m_buffer.back().m_time)
     {
         ROS_WARN("Time has gone backwards, clearing buffer for this topic.");
-        // m_buffer.clear();
+        m_buffer.clear();
         return false;
     }
 
-    if (m_buffer.size() > 0)
+    if (!m_buffer.empty())
     {
         float dt = (time - m_buffer.front().m_time).toSec();
         while (dt > m_timeLimit)
@@ -67,13 +87,9 @@ bool DeamonCommand::checkQueue(ros::Time& time)
 void DeamonCommand::topicCB(const std::string& topic,
                             const ros::MessageEvent<topic_tools::ShapeShifter const>& msg_event)
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    ros::Time recv_time = msg_event.getReceiptTime();
-    if (!checkQueue(recv_time))
-        return;
+    std::lock_guard<std::mutex> lg(m_daemonMutex);
 
-    OutgoingMessage msg{topic, recv_time, msg_event.getMessage(), msg_event.getConnectionHeaderPtr()};
-    m_buffer.push_back(msg);
+    OutgoingMessage msg{topic, msg_event.getReceiptTime(), msg_event.getMessage(), msg_event.getConnectionHeaderPtr()};
 
     if (msg.m_connectionHeader)
     {
@@ -81,6 +97,12 @@ void DeamonCommand::topicCB(const std::string& topic,
         if (it != msg.m_connectionHeader->end() && it->second == "1")
         {
             m_latchedMsgs[msg.m_topic] = msg;
+        }
+        else
+        {
+            if (!checkQueue(msg.m_time))
+                return;
+            m_buffer.push_back(msg);
         }
     }
 }
@@ -118,68 +140,122 @@ void DeamonCommand::pollTopics()
     {
         ROS_WARN_STREAM_THROTTLE(5, "Failed to get topics from the ROS master");
     }
+    ros::master::V_TopicInfo().swap(topics);
+}
+
+bool DeamonCommand::writeTopic(rosbag::Bag& bag, const OutgoingMessage& msg, TriggerRecord::Request& req,
+                               TriggerRecord::Response& res)
+{
+    if (!bag.isOpen())
+    {
+        try
+        {
+            bag.open(req.filename, rosbag::bagmode::Write);
+            // first write latched topics
+            if (!m_latchedMsgs.empty())
+            {
+                m_daemonMutex.lock();
+                auto latched_msgs = m_latchedMsgs;
+                m_daemonMutex.unlock();
+                for (auto& lm : latched_msgs)
+                {
+                    bag.write(lm.first, m_writer.m_startTime, lm.second.m_topicMsg, lm.second.m_connectionHeader);
+                }
+                std::map<std::string, OutgoingMessage>().swap(latched_msgs);
+                malloc_trim(0);
+            }
+        }
+        catch (rosbag::BagException const& err)
+        {
+            res.success = false;
+            res.message = std::string("failed to open bag: ") + err.what();
+            return false;
+        }
+        ROS_INFO("Writing record to %s", req.filename.c_str());
+    }
+
+    try
+    {
+        bag.write(msg.m_topic, msg.m_time, msg.m_topicMsg, msg.m_connectionHeader);
+    }
+    catch (rosbag::BagException const& err)
+    {
+        res.success = false;
+        res.message = std::string("failed to write bag: ") + err.what();
+        return false;
+    }
+
+    return true;
+}
+
+void DeamonCommand::writeFile()
+{
+    while (ros::ok() && !m_killTerminal)
+    {
+        std::unique_lock<std::mutex> lg(m_writeMutex);
+        m_cv.wait(lg, [this]() { return m_writer.m_readyWrite; });
+
+        rosbag::Bag bag;
+        if (m_writer.m_req.compression == 2)
+        {
+            ROS_INFO("Bag compression type LZ4");
+            bag.setCompression(rosbag::compression::LZ4);
+        }
+        else if (m_writer.m_req.compression == 1)
+        {
+            ROS_INFO("Bag compression type BZ2");
+            bag.setCompression(rosbag::compression::BZ2);
+        }
+        else
+        {
+            bag.setCompression(rosbag::compression::Uncompressed);
+        }
+
+        m_daemonMutex.lock();
+        auto normal_msgs = m_buffer;
+        m_daemonMutex.unlock();
+
+        for (auto& nm : normal_msgs)
+        {
+            if (!writeTopic(bag, nm, m_writer.m_req, m_writer.m_res))
+                return;
+        }
+        std::deque<OutgoingMessage>().swap(normal_msgs);
+        normal_msgs.shrink_to_fit();
+
+        m_writer.m_readyWrite = false;
+        lg.unlock();
+    }
 }
 
 bool DeamonCommand::triggerRecordCB(TriggerRecord::Request& req, TriggerRecord::Response& res)
 {
-    rosbag::Bag bag;
-    if (req.compression == 2)
+    if (m_writer.m_readyWrite)
     {
-        ROS_INFO("Bag compression type LZ4");
-        bag.setCompression(rosbag::compression::LZ4);
-    }
-    else if (req.compression == 1)
-    {
-        ROS_INFO("Bag compression type BZ2");
-        bag.setCompression(rosbag::compression::BZ2);
-    }
-    else
-    {
-        bag.setCompression(rosbag::compression::Uncompressed);
-    }
-
-    std::deque<OutgoingMessage> normal_msgs;
-    m_mutex.lock();
-    normal_msgs = m_buffer; // copy buffer
-    auto latched_msgs = m_latchedMsgs;
-    m_mutex.unlock();
-
-    for (auto& lm : latched_msgs)
-    {
-        if (!writeTopic(bag, lm.second, req, res))
-        {
-            res.success = false;
-            return false;
-        }
-    }
-
-    for (auto& nm : normal_msgs)
-    {
-        if (!writeTopic(bag, nm, req, res))
-        {
-            res.success = false;
-            return false;
-        }
-    }
-    normal_msgs.clear();
-
-    if (!bag.isOpen())
-    {
-        res.success = false;
-        res.message = res.NO_DATA_MESSAGE;
+        ROS_WARN("The last time to write file is not over yet!");
         return false;
     }
+    std::lock_guard<std::mutex> lg(m_writeMutex);
 
     res.success = true;
+    m_writer.m_startTime = m_buffer.front().m_time;
+    m_writer.m_req = req;
+    m_writer.m_res = res;
+    m_writer.m_readyWrite = true;
+    m_cv.notify_one();
+
     return true;
 }
 
 int DeamonCommand::run()
 {
     if (!m_nh.ok())
-        return 0;
+        return 1;
 
     m_triggerServer = m_nh.advertiseService("trigger_record", &DeamonCommand::triggerRecordCB, this);
+
+    std::thread th(&DeamonCommand::writeFile, this);
+    th.detach();
 
     if (m_allTopics)
     {
@@ -201,6 +277,7 @@ int DeamonCommand::run()
     }
 
     ros::spin();
+
     return 0;
 }
 
@@ -241,38 +318,6 @@ bool WriteCommand::parseArguments(ArgParser& parser)
     else
     {
         m_compressType = CompressionType::lz4;
-    }
-
-    return true;
-}
-
-bool DeamonCommand::writeTopic(rosbag::Bag& bag, const OutgoingMessage& msg, TriggerRecord::Request& req,
-                               TriggerRecord::Response& res)
-{
-    if (!bag.isOpen())
-    {
-        try
-        {
-            bag.open(req.filename, rosbag::bagmode::Write);
-        }
-        catch (rosbag::BagException const& err)
-        {
-            res.success = false;
-            res.message = std::string("failed to open bag: ") + err.what();
-            return false;
-        }
-        ROS_INFO("Writing record to %s", req.filename.c_str());
-    }
-
-    try
-    {
-        bag.write(msg.m_topic, msg.m_time, msg.m_topicMsg, msg.m_connectionHeader);
-    }
-    catch (rosbag::BagException const& err)
-    {
-        res.success = false;
-        res.message = std::string("failed to write bag: ") + err.what();
-        return false;
     }
 
     return true;

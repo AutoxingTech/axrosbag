@@ -8,6 +8,9 @@
 #include <list>
 #include <mutex>
 #include <map>
+#include <malloc.h>
+#include <thread>
+#include <condition_variable>
 
 #include <ros/ros.h>
 #include <ros/time.h>
@@ -42,9 +45,19 @@ struct OutgoingMessage
     boost::shared_ptr<ros::M_string> m_connectionHeader;
 };
 
+struct BagWriter
+{
+    ros::Time m_startTime;
+    TriggerRecord::Request m_req;
+    TriggerRecord::Response m_res;
+    bool m_readyWrite;
+};
+
 class DeamonCommand : public Subcommand
 {
 public:
+    DeamonCommand();
+    ~DeamonCommand();
     void printHelp() override;
     bool parseArguments(ArgParser& parse) override;
     int run() override;
@@ -57,6 +70,7 @@ private:
     bool checkQueue(ros::Time& time);
     bool writeTopic(rosbag::Bag& bag, const OutgoingMessage& msg, TriggerRecord::Request& req,
                     TriggerRecord::Response& res);
+    void writeFile();
 
     bool m_allTopics;
     std::vector<std::string> m_topics;
@@ -68,7 +82,11 @@ private:
     std::unordered_set<std::string> m_checkTopics;
     std::list<ros::Subscriber> m_subscribers;
     ros::ServiceServer m_triggerServer;
-    std::mutex m_mutex;
+    std::mutex m_daemonMutex;
+    BagWriter m_writer;
+    std::condition_variable m_cv;
+    std::mutex m_writeMutex;
+    bool m_killTerminal = false;
 };
 
 class WriteCommand : public Subcommand

@@ -1,3 +1,4 @@
+#include <signal.h>
 #include "commands.h"
 
 int printHelp()
@@ -11,9 +12,17 @@ int printHelp()
     return 0;
 }
 
+void signal_handler(int signal)
+{
+    (void)signal;
+    ros::requestShutdown();
+}
+
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "axrosbag", ros::InitOption::AnonymousName);
+
+    signal(SIGTERM, signal_handler);
 
     ArgParser parser;
     parser.parse(argc, argv);
