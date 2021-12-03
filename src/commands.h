@@ -87,6 +87,7 @@ private:
     std::condition_variable m_cv;
     std::mutex m_writeMutex;
     bool m_killTerminal = false;
+    std::thread m_writeThread;
 };
 
 class WriteCommand : public Subcommand

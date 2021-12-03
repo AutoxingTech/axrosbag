@@ -35,6 +35,9 @@ DeamonCommand::~DeamonCommand()
         m_cv.notify_one();
     }
 
+    if (m_writeThread.joinable())
+        m_writeThread.join();
+
     for (auto& sub : m_subscribers)
     {
         sub.shutdown();
@@ -255,8 +258,7 @@ int DeamonCommand::run()
 
     m_triggerServer = m_nh.advertiseService("trigger_record", &DeamonCommand::triggerRecordCB, this);
 
-    std::thread th(&DeamonCommand::writeFile, this);
-    th.detach();
+    m_writeThread = std::thread(&DeamonCommand::writeFile, this);
 
     if (m_allTopics)
     {
