@@ -1,5 +1,9 @@
+int32 COMPRESSION_TYPE_NONE = 0
+int32 COMPRESSION_TYPE_BZ2 = 1
+int32 COMPRESSION_TYPE_LZ4 = 2
+
 string filename
-uint8 compression
+int32 compression_type
 ---
 bool success
 string NO_DATA_MESSAGE=no messages buffered on selected topics

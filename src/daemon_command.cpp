@@ -187,12 +187,12 @@ void DeamonCommand::writeFile()
         }
 
         rosbag::Bag bag;
-        if (m_writer.m_req.compression == 2)
+        if (m_writer.m_req.compression_type == TriggerRecord::Request::COMPRESSION_TYPE_LZ4)
         {
             ROS_INFO("Bag compression type LZ4");
             bag.setCompression(rosbag::compression::LZ4);
         }
-        else if (m_writer.m_req.compression == 1)
+        else if (m_writer.m_req.compression_type == TriggerRecord::Request::COMPRESSION_TYPE_BZ2)
         {
             ROS_INFO("Bag compression type BZ2");
             bag.setCompression(rosbag::compression::BZ2);

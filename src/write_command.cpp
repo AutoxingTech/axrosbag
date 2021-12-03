@@ -54,21 +54,7 @@ int WriteCommand::run()
 
     TriggerRecordRequest req;
     req.filename = m_filename;
-
-    switch (m_compressType)
-    {
-    case CompressionType::none:
-        req.compression = 0;
-        break;
-    case CompressionType::bz2:
-        req.compression = 1;
-        break;
-    case CompressionType::lz4:
-        req.compression = 2;
-        break;
-    default:
-        break;
-    }
+    req.compression_type = (int)(m_compressType);
 
     TriggerRecordResponse res;
     if (!client.call(req, res))

@@ -16,9 +16,9 @@ using namespace axrosbag;
 
 enum class CompressionType
 {
-    none,
-    bz2,
-    lz4
+    none = 0,
+    bz2 = 1,
+    lz4 = 2
 };
 
 class WriteCommand : public CommandBase
