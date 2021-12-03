@@ -27,6 +27,8 @@ DeamonCommand::DeamonCommand()
 
 DeamonCommand::~DeamonCommand()
 {
+    m_killTerminal = true;
+
     {
         std::lock_guard<std::mutex> lg(m_writeMutex);
         m_writer.m_readyWrite = true;
@@ -37,8 +39,6 @@ DeamonCommand::~DeamonCommand()
     {
         sub.shutdown();
     }
-
-    m_killTerminal = true;
 }
 
 void DeamonCommand::printHelp()
@@ -89,7 +89,8 @@ void DeamonCommand::topicCB(const std::string& topic,
 {
     std::lock_guard<std::mutex> lg(m_daemonMutex);
 
-    OutgoingMessage msg{topic, msg_event.getReceiptTime(), msg_event.getMessage(), msg_event.getConnectionHeaderPtr()};
+    ros::Time recv_time = ros::Time::now();
+    OutgoingMessage msg{topic, recv_time, msg_event.getMessage(), msg_event.getConnectionHeaderPtr()};
 
     if (msg.m_connectionHeader)
     {
