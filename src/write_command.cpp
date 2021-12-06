@@ -52,8 +52,10 @@ int WriteCommand::run()
     }
 
     TriggerRecordRequest req;
-    req.filename = m_filename;
     req.compression_type = (int)(m_compressType);
+
+    boost::filesystem::path p(boost::filesystem::system_complete(m_filename));
+    req.filename = p.string();
 
     TriggerRecordResponse res;
     if (!client.call(req, res))
@@ -67,6 +69,6 @@ int WriteCommand::run()
         return 1;
     }
 
-    printf("writing file %s\n", m_filename.c_str());
+    printf("writing file %s\n", p.c_str());
     return 0;
 }

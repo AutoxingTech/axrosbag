@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <ros/ros.h>
+#include <boost/filesystem.hpp>
 #include "command_base.h"
 
 #include "axrosbag/TriggerRecord.h"
