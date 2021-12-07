@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0)
-project(axrosbag)
+project(axrosbag_ros)
 
 set (CMAKE_CXX_STANDARD 17)
 
@@ -18,6 +18,8 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   add_compile_options(-Wthread-safety)
 endif()
 
+include("${PROJECT_SOURCE_DIR}/cmake/functions.cmake")
+
 find_package(catkin REQUIRED COMPONENTS rosbag roscpp std_srvs topic_tools message_generation)
 
 add_service_files(FILES TriggerRecord.srv)
@@ -28,25 +30,21 @@ generate_messages(
 )
 
 catkin_package(
-    LIBRARIES
-    INCLUDE_DIRS
-    CATKIN_DEPENDS rosbag roscpp std_srvs topic_tools message_runtime
+  LIBRARIES ${PROJECT_NAME}
+  INCLUDE_DIRS "."
+  CATKIN_DEPENDS rosbag roscpp std_srvs topic_tools message_runtime
 )
 
-include_directories(${catkin_INCLUDE_DIRS})
+file(GLOB_RECURSE ALL_SRCS "src/*.cpp" "src/*.h")
+file(GLOB_RECURSE ALL_EXECUTABLES "src/main_*.cpp")
+list(REMOVE_ITEM ALL_SRCS ${ALL_EXECUTABLES})
+add_library(${PROJECT_NAME} STATIC ${ALL_SRCS})
+add_subdirectory("src")
 
-add_executable(${PROJECT_NAME} 
-  src/main_record.cpp
-  src/nc_argparse.cpp
-  src/write_command.cpp
-  src/daemon_command.cpp
-  src/command_base.cpp
-  src/bag_writer.cpp
-)
-
+target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC ${catkin_INCLUDE_DIRS})
 add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
 install(TARGETS ${PROJECT_NAME}
-    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
 )

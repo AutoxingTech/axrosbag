@@ -6,10 +6,10 @@
 #include <boost/filesystem.hpp>
 #include "command_base.h"
 
-#include "axrosbag/TriggerRecord.h"
+#include "axrosbag_ros/TriggerRecord.h"
 #include "common_types.h"
 
-using namespace axrosbag;
+using namespace axrosbag_ros;
 
 class WriteCommand : public CommandBase
 {
