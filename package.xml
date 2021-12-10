@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>axrosbag_ros</name>
+  <name>axrosbag</name>
   <version>1.0.0</version>
-  <description>The axrosbag_ros package</description>
+  <description>The axrosbag package</description>
   
   <maintainer email="xxx@xxx.xxx">autoxing</maintainer>
 

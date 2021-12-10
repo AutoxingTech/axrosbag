@@ -13,11 +13,11 @@
 #include <ros/callback_queue.h>
 
 #include "mutex.h"
-#include "axrosbag_ros/TriggerRecord.h"
+#include "axrosbag/TriggerRecord.h"
 #include "command_base.h"
 #include "common_types.h"
 
-using namespace axrosbag_ros;
+using namespace axrosbag;
 
 class DeamonCommand : public CommandBase
 {

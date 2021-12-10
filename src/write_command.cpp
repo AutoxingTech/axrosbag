@@ -47,7 +47,7 @@ int WriteCommand::run()
     ros::ServiceClient client = m_nh.serviceClient<TriggerRecord>("/axrosbag/write");
     if (!client.exists())
     {
-        ROS_ERROR("Service %s does not exist. Is record running in this namespace?", "axrosbag_daemon");
+        ROS_ERROR("Service %s does not exist. Is record running in this namespace?", "trigger_record");
         return 1;
     }
 
