@@ -2,8 +2,8 @@
 
 When bad things happen, it's often too late to start recording with `rosbag record`.
 
-`axrosbag` will quitely work in the background, recording everthing only in memory.
-When needed, you can make a request to save last-N-seconds of topics into a bag file.
+`axrosbag` will record last-N seconds(rotated) of messages only in memory.
+Only when needed, you can make a request to dump saved messages into a bag file.
 
 ### Daemon Mode
 
