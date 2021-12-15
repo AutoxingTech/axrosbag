@@ -54,7 +54,7 @@ private:
 
     nc::Mutex m_bufferMutex;
     std::deque<OutgoingMessage> m_buffer GUARDED_BY(m_bufferMutex);
-    std::map<std::string, OutgoingMessage> m_latchedMsgs GUARDED_BY(m_bufferMutex);
+    std::map<std::pair<std::string, std::string>, OutgoingMessage> m_latchedMsgs GUARDED_BY(m_bufferMutex);
 
     std::unordered_set<std::string> m_checkTopics;
     std::list<ros::Subscriber> m_subscribers;
