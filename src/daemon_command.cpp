@@ -67,9 +67,13 @@ void DeamonCommand::removeMessageTimer(const ros::TimerEvent& /* e */)
         if (connectionHeader)
         {
             auto it = connectionHeader->find("latching");
-            if (it != connectionHeader->end())
+            if ((it != connectionHeader->end()) && (it->second == "1"))
             {
-                m_latchedMsgs[m_buffer[i].topic] = m_buffer[i];
+                auto it2 = connectionHeader->find("callerid");
+                if (it2 != connectionHeader->end())
+                {
+                    m_latchedMsgs[{m_buffer[i].topic, it2->second}] = m_buffer[i];
+                }
             }
         }
     }

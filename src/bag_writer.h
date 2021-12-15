@@ -8,7 +8,8 @@
 class BagWriter
 {
 public:
-    BagWriter(const std::deque<OutgoingMessage>& buffer, const std::map<std::string, OutgoingMessage>& latchedMsgs)
+    BagWriter(const std::deque<OutgoingMessage>& buffer,
+              const std::map<std::pair<std::string, std::string>, OutgoingMessage>& latchedMsgs)
         : m_messages(buffer), m_latchedMsgs(latchedMsgs)
     {
     }
@@ -23,5 +24,5 @@ private:
     rosbag::Bag m_bag;
 
     std::deque<OutgoingMessage> m_messages;
-    std::map<std::string, OutgoingMessage> m_latchedMsgs;
+    std::map<std::pair<std::string, std::string>, OutgoingMessage> m_latchedMsgs;
 };
