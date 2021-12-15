@@ -8,7 +8,6 @@ When needed, you can make a request to save last-N-seconds of topics into a bag 
 ### Daemon Mode
 
 Record topics in memory.
-参数 -a(--all) 表示记录所有 topic， 如果未加 -a 选项, 必须指定记录哪些 topic; 默认 buffer 时长为 300s，也支持参数 --limit 60, 即指定 buffer 时长 60s.
 
 Sample commands:
 
@@ -19,6 +18,9 @@ axrosbag daemon -a
 axrosbag daemon /imu /odom # 
 # record all topics with a 60-seconds buffer
 axrosbag daemon -a --limit 60
+
+# show help
+axrosbag daemon --help
 ```
 
 ### Write to File
@@ -26,5 +28,8 @@ axrosbag daemon -a --limit 60
 Sample command:
 
 ```bash
+# write recorded messages into a file.bag
 axrosbag write -f file.bag
+# show help
+axrosbag daemon --help
 ```
