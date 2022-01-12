@@ -1,0 +1,7 @@
+bool is_pause
+bool all_topics
+string[] topics
+---
+bool all_paused
+string[] paused_topics
+bool success

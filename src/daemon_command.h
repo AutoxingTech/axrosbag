@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include <list>
 #include <map>
+#include <set>
 #include <thread>
 
 #include <ros/ros.h>
@@ -14,6 +15,7 @@
 
 #include "mutex.h"
 #include "axrosbag/TriggerRecord.h"
+#include "axrosbag/PauseResume.h"
 #include "command_base.h"
 #include "common_types.h"
 
@@ -32,6 +34,7 @@ public:
 private:
     void subscribeTopic(std::string& topic);
     bool writeServiceCallback(TriggerRecord::Request& req, TriggerRecord::Response& res);
+    bool pauseResumeServiceCallback(PauseResume::Request& req, PauseResume::Response& res);
     void topicCallback(const std::string& topic, const ros::MessageEvent<topic_tools::ShapeShifter const>& msg_event);
 
     void pollTopicsTimer(const ros::TimerEvent& e);
@@ -59,4 +62,10 @@ private:
     std::unordered_set<std::string> m_checkTopics;
     std::list<ros::Subscriber> m_subscribers;
     ros::ServiceServer m_triggerServer;
+
+    nc::Mutex m_pauseMutex;
+    bool m_pauseAllTopics GUARDED_BY(m_pauseMutex) = false;
+    std::set<std::string> m_pausedTopics GUARDED_BY(m_pauseMutex);
+    ros::ServiceServer m_pauseServer;
+    ros::ServiceServer m_resumeServer;
 };

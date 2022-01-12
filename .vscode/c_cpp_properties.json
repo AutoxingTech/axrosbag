@@ -6,9 +6,9 @@
         "limitSymbolsToIncludedHeaders": true
       },
       "includePath": [
-        "/home/simba/ax/axrosbag_ws/devel/include/**",
+        "${workspaceFolder}/../../devel/include/**",
         "/opt/ax/platform/include/**",
-        "/opt/ros/melodic/include/**",
+        "/opt/ros/noetic/include/**",
         "/usr/include/**"
       ],
       "name": "ROS"

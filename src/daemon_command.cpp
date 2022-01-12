@@ -85,11 +85,27 @@ void DeamonCommand::removeMessageTimer(const ros::TimerEvent& /* e */)
 void DeamonCommand::topicCallback(const std::string& topic,
                                   const ros::MessageEvent<topic_tools::ShapeShifter const>& msgEvent)
 {
-    ros::Time recvTime = ros::Time::now();
-    OutgoingMessage msg{topic, recvTime, msgEvent.getMessage(), msgEvent.getConnectionHeaderPtr()};
+    bool paused = false;
+    {
+        LockGuard lg(m_pauseMutex);
+        if (m_pauseAllTopics)
+        {
+            paused = true;
+        }
+        else
+        {
+            paused = m_pausedTopics.find(topic) != m_pausedTopics.end();
+        }
+    }
 
-    nc::LockGuard lg(m_bufferMutex);
-    m_buffer.push_back(msg);
+    if (!paused)
+    {
+        ros::Time recvTime = ros::Time::now();
+        OutgoingMessage msg{topic, recvTime, msgEvent.getMessage(), msgEvent.getConnectionHeaderPtr()};
+
+        nc::LockGuard lg(m_bufferMutex);
+        m_buffer.push_back(msg);
+    }
 }
 
 void DeamonCommand::subscribeTopic(std::string& topic)
@@ -147,12 +163,55 @@ bool DeamonCommand::writeServiceCallback(TriggerRecord::Request& req, TriggerRec
     return true;
 }
 
+bool DeamonCommand::pauseResumeServiceCallback(PauseResume::Request& req, PauseResume::Response& res)
+{
+    LockGuard lg(m_pauseMutex);
+    if (req.is_pause)
+    {
+        m_pauseAllTopics = req.all_topics;
+        if (req.all_topics)
+        {
+            m_pausedTopics.clear();
+        }
+        else
+        {
+            for (const auto& topic : req.topics)
+            {
+                m_pausedTopics.insert(topic);
+            }
+        }
+    }
+    else
+    {
+        m_pauseAllTopics = false;
+        if (req.all_topics)
+        {
+            m_pausedTopics.clear();
+        }
+        else
+        {
+            for (const auto& topic : req.topics)
+            {
+                m_pausedTopics.erase(topic);
+            }
+        }
+    }
+
+    res.all_paused = m_pauseAllTopics;
+    res.paused_topics.resize(m_pausedTopics.size());
+    std::copy(m_pausedTopics.begin(), m_pausedTopics.end(), res.paused_topics.begin());
+    res.success = true;
+    return true;
+}
+
 int DeamonCommand::run()
 {
     if (!m_nh.ok())
         return 1;
 
     m_triggerServer = m_asyncHandle.advertiseService("/axrosbag/write", &DeamonCommand::writeServiceCallback, this);
+    m_triggerServer =
+        m_asyncHandle.advertiseService("/axrosbag/pause", &DeamonCommand::pauseResumeServiceCallback, this);
     m_removeMessageTimer = m_nh.createTimer(ros::Duration(1), &DeamonCommand::removeMessageTimer, this);
 
     if (m_allTopics)

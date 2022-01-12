@@ -20,7 +20,10 @@ endif()
 
 find_package(catkin REQUIRED COMPONENTS rosbag roscpp std_srvs topic_tools message_generation)
 
-add_service_files(FILES TriggerRecord.srv)
+add_service_files(FILES 
+  PauseResume.srv
+  TriggerRecord.srv
+)
 
 generate_messages(
   DEPENDENCIES
@@ -40,6 +43,7 @@ add_executable(${PROJECT_NAME}
   src/nc_argparse.cpp
   src/write_command.cpp
   src/daemon_command.cpp
+  src/pause_command.cpp
   src/command_base.cpp
   src/bag_writer.cpp
 )

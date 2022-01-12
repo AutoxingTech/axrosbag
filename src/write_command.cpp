@@ -1,5 +1,7 @@
 #include "write_command.h"
+#include "axrosbag/TriggerRecord.h"
 
+using namespace axrosbag;
 using namespace std;
 
 void WriteCommand::printHelp()
@@ -47,7 +49,7 @@ int WriteCommand::run()
     ros::ServiceClient client = m_nh.serviceClient<TriggerRecord>("/axrosbag/write");
     if (!client.exists())
     {
-        ROS_ERROR("Service %s does not exist. Is record running in this namespace?", "trigger_record");
+        ROS_ERROR("Service write does not exist. Is record running in this namespace?");
         return 1;
     }
 

@@ -3,23 +3,21 @@
 #include <string>
 #include <vector>
 #include <ros/ros.h>
-#include <boost/filesystem.hpp>
 #include "command_base.h"
 #include "common_types.h"
 
-class WriteCommand : public CommandBase
+class PauseCommand : public CommandBase
 {
 public:
-    WriteCommand() : m_nh("~") {}
+    PauseCommand(bool isPause) : m_nh("~") { m_isPause = isPause; }
 
     void printHelp() override;
     bool parseArguments(ArgParser& parse) override;
     int run() override;
 
 private:
-    std::string m_filename;
+    bool m_isPause;
     std::vector<std::string> m_topics;
     bool m_allTopics;
-    CompressionType m_compressType = CompressionType::none;
     ros::NodeHandle m_nh;
 };

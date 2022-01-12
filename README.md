@@ -15,9 +15,15 @@ Sample commands:
 # record all topics with default buffer length
 axrosbag daemon -a
 # record selected topics
-axrosbag daemon /imu /odom # 
+axrosbag daemon /imu /odom #
 # record all topics with a 60-seconds buffer
 axrosbag daemon -a --limit 60
+
+# pause recording of some topics
+axrosbag pause /imu /odom
+
+# resume ecording of some topics
+axrosbag resume --all
 
 # show help
 axrosbag daemon --help
