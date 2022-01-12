@@ -44,5 +44,22 @@ int PauseCommand::run()
         return 1;
     }
 
+    if (res.all_paused)
+    {
+        printf("All topics are paused.\n");
+    }
+    else if (!res.paused_topics.empty())
+    {
+        printf("Paused Topics: \n");
+        for (const auto& topic : res.paused_topics)
+        {
+            printf("%s\n", topic.c_str());
+        }
+    }
+    else
+    {
+        printf("No paused Topics.\n");
+    }
+
     return 0;
 }

@@ -168,13 +168,14 @@ bool DeamonCommand::pauseResumeServiceCallback(PauseResume::Request& req, PauseR
     LockGuard lg(m_pauseMutex);
     if (req.is_pause)
     {
-        m_pauseAllTopics = req.all_topics;
         if (req.all_topics)
         {
+            m_pauseAllTopics = true;
             m_pausedTopics.clear();
         }
         else
         {
+            m_pauseAllTopics = false;
             for (const auto& topic : req.topics)
             {
                 m_pausedTopics.insert(topic);
