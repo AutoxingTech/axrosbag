@@ -2,29 +2,25 @@
 
 When bad things happen, it's often too late to start recording with `rosbag record`.
 
-`axrosbag` serve as a [accident data recorder](https://en.wikipedia.org/wiki/Accident_data_recorder).
+`axrosbag` acts as an [accident data recorder](https://en.wikipedia.org/wiki/Accident_data_recorder).
 It will rotatedly record last-N seconds of messages only in memory.
-Only when requested, it will dump saved messages into a [ROS bag file](http://wiki.ros.org/Bags).
+Only when requested, it shall dump saved messages into a [ROS bag file](http://wiki.ros.org/Bags).
 
 - [Command Line Interface](#command-line-interface)
-  - [1. Daemon Mode](#1-daemon-mode)
-  - [2. Write to File](#2-write-to-file)
-  - [3. Pause & Resume](#3-pause--resume)
+  - [Daemon Mode](#daemon-mode)
+  - [Write to File](#write-to-file)
+  - [Pause & Resume](#pause--resume)
 - [ROS Services](#ros-services)
 
 ## Command Line Interface
 
-### 1. Daemon Mode
-
-Record topics in memory.
-
-Sample commands:
+### Daemon Mode
 
 ```bash
-# record all topics with default buffer length
+# record all topics with default buffer size
 axrosbag daemon -a
 # record selected topics
-axrosbag daemon /imu /odom #
+axrosbag daemon /imu /odom
 # record all topics with a 60-seconds buffer
 axrosbag daemon -a --limit 60
 
@@ -32,18 +28,16 @@ axrosbag daemon -a --limit 60
 axrosbag daemon --help
 ```
 
-### 2. Write to File
-
-Sample command:
+### Write to File
 
 ```bash
-# write recorded messages into a file.bag
+# write recorded messages into file.bag
 axrosbag write -f file.bag
 # show help
 axrosbag daemon --help
 ```
 
-### 3. Pause & Resume
+### Pause & Resume
 
 ```bash
 # pause recording of some topics
