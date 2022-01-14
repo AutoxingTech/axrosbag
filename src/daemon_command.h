@@ -67,5 +67,4 @@ private:
     bool m_pauseAllTopics GUARDED_BY(m_pauseMutex) = false;
     std::set<std::string> m_pausedTopics GUARDED_BY(m_pauseMutex);
     ros::ServiceServer m_pauseServer;
-    ros::ServiceServer m_resumeServer;
 };
