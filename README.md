@@ -19,12 +19,6 @@ axrosbag daemon /imu /odom #
 # record all topics with a 60-seconds buffer
 axrosbag daemon -a --limit 60
 
-# pause recording of some topics
-axrosbag pause /imu /odom
-
-# resume ecording of some topics
-axrosbag resume --all
-
 # show help
 axrosbag daemon --help
 ```
@@ -38,4 +32,14 @@ Sample command:
 axrosbag write -f file.bag
 # show help
 axrosbag daemon --help
+```
+
+### Pause & Resume
+
+```bash
+# pause recording of some topics
+axrosbag pause /imu /odom
+
+# resume recording of all topics
+axrosbag resume --all
 ```
