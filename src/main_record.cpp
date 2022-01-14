@@ -8,7 +8,9 @@ int printHelp()
            "\n"
            "COMMAND:\n"
            "  daemon    Record message in background.\n"
-           "  write     Write recorded message in to file\n");
+           "  write     Write recorded message in to file\n"
+           "  pause     Pause recording of some/all topics\n"
+           "  resume    Resume recording of some/all topics\n");
     return 0;
 }
 

@@ -211,8 +211,7 @@ int DeamonCommand::run()
         return 1;
 
     m_triggerServer = m_asyncHandle.advertiseService("/axrosbag/write", &DeamonCommand::writeServiceCallback, this);
-    m_triggerServer =
-        m_asyncHandle.advertiseService("/axrosbag/pause", &DeamonCommand::pauseResumeServiceCallback, this);
+    m_pauseServer = m_asyncHandle.advertiseService("/axrosbag/pause", &DeamonCommand::pauseResumeServiceCallback, this);
     m_removeMessageTimer = m_nh.createTimer(ros::Duration(1), &DeamonCommand::removeMessageTimer, this);
 
     if (m_allTopics)
