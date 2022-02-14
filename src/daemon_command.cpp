@@ -82,7 +82,7 @@ void DeamonCommand::removeMessageTimer(const ros::TimerEvent& /* e */)
     ROS_DEBUG("Messages in queue %d", (int)m_buffer.size());
 }
 
-void DeamonCommand::topicCallback(const std::string& topic,
+void DeamonCommand::topicCallback(const std::string& topic, float frequency,
                                   const ros::MessageEvent<topic_tools::ShapeShifter const>& msgEvent)
 {
     bool paused = false;
@@ -103,12 +103,30 @@ void DeamonCommand::topicCallback(const std::string& topic,
         ros::Time recvTime = ros::Time::now();
         OutgoingMessage msg{topic, recvTime, msgEvent.getMessage(), msgEvent.getConnectionHeaderPtr()};
 
+        if (frequency > 0.f)
+        {
+            auto res = m_lowerFrequencyTopics.insert(make_pair(topic, recvTime));
+            if (res.second)
+            {
+                return; // map init
+            }
+
+            if ((recvTime - m_lowerFrequencyTopics[topic]).toSec() < 1.0 / frequency)
+            {
+                return; // skip some data
+            }
+            else
+            {
+                m_lowerFrequencyTopics[topic] = recvTime; // update map
+            }
+        }
+
         nc::LockGuard lg(m_bufferMutex);
         m_buffer.push_back(msg);
     }
 }
 
-void DeamonCommand::subscribeTopic(std::string& topic)
+void DeamonCommand::subscribeTopic(std::string& topic, float frequency)
 {
     ROS_INFO("Subscribing to %s", topic.c_str());
 
@@ -119,7 +137,9 @@ void DeamonCommand::subscribeTopic(std::string& topic)
     ops.datatype = ros::message_traits::datatype<topic_tools::ShapeShifter>();
     ops.helper =
         boost::make_shared<ros::SubscriptionCallbackHelperT<const ros::MessageEvent<topic_tools::ShapeShifter const>&>>(
-            [this, topic](const ros::MessageEvent<topic_tools::ShapeShifter const>& ev) { topicCallback(topic, ev); });
+            [this, topic, frequency](const ros::MessageEvent<topic_tools::ShapeShifter const>& ev) {
+                topicCallback(topic, frequency, ev);
+            });
     m_subscribers.push_back(m_nh.subscribe(ops));
 }
 
@@ -224,11 +244,27 @@ int DeamonCommand::run()
         printf("recoding topics:\n");
         for (auto& topic : m_topics)
         {
-            auto res = m_checkTopics.insert(topic);
-            if (res.second)
+            int nPos = topic.find("@");
+            if (nPos != -1)
             {
-                printf("\t%s\n", topic.c_str());
-                subscribeTopic(topic);
+                std::string topicName = topic.substr(0, nPos);
+                std::string topicFrequency = topic.substr(nPos + 1, topic.length() - topicName.length() - 3);
+                float frequency = atof(topicFrequency.c_str());
+                auto res = m_checkTopics.insert(topicName);
+                if (res.second)
+                {
+                    printf("\t%s\n", topic.c_str());
+                    subscribeTopic(topicName, frequency);
+                }
+            }
+            else
+            {
+                auto res = m_checkTopics.insert(topic);
+                if (res.second)
+                {
+                    printf("\t%s\n", topic.c_str());
+                    subscribeTopic(topic);
+                }
             }
         }
     }
