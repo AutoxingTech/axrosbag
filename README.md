@@ -23,6 +23,8 @@ axrosbag daemon -a
 axrosbag daemon /imu /odom
 # record all topics with a 60-seconds buffer
 axrosbag daemon -a --limit 60
+# resample topics while recording, to reduce bag size
+axrosbag daemon /imu@2hz /odom@0.5hz
 
 # show help
 axrosbag daemon --help

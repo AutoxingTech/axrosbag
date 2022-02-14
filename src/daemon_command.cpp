@@ -166,7 +166,10 @@ void DeamonCommand::topicCallback(const std::string& topic, float minInterval,
 
 void DeamonCommand::subscribeTopic(const std::string& topic, float minInterval)
 {
-    ROS_INFO("Subscribing to %s", topic.c_str());
+    if (minInterval == 0)
+        ROS_INFO("Subscribing to %s", topic.c_str());
+    else
+        ROS_INFO("Subscribing to %s @ %fhz", topic.c_str(), 1.0f / minInterval);
 
     ros::SubscribeOptions ops;
     ops.topic = topic;
@@ -285,7 +288,6 @@ int DeamonCommand::run()
             auto res = m_checkTopics.insert(topicMinIntervals.first);
             if (res.second)
             {
-                printf("\t%s\n", topicMinIntervals.first.c_str());
                 subscribeTopic(topicMinIntervals.first, topicMinIntervals.second);
             }
         }
