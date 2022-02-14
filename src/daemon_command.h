@@ -32,7 +32,7 @@ public:
     int run() override;
 
 private:
-    void subscribeTopic(std::string& topic, float frequency = -1.f);
+    void subscribeTopic(const std::string& topic, float frequency);
     bool writeServiceCallback(TriggerRecord::Request& req, TriggerRecord::Response& res);
     bool pauseResumeServiceCallback(PauseResume::Request& req, PauseResume::Response& res);
     void topicCallback(const std::string& topic, float frequency,
@@ -44,7 +44,7 @@ private:
 private:
     // parameters
     bool m_allTopics;
-    std::vector<std::string> m_topics;
+    std::map<std::string, float> m_topicsFrequencies;
     float m_timeLimit = 300;
 
     // for service
@@ -69,8 +69,6 @@ private:
     std::set<std::string> m_pausedTopics GUARDED_BY(m_pauseMutex);
     ros::ServiceServer m_pauseServer;
 
-    std::map<std::string, ros::Time> m_lowerFrequencyTopics;
+    std::map<std::string, ros::Time> m_topicLastReceivedTime;
     ros::Time m_lastRosTime;
-    double m_intervalTime;
-    bool m_init = false;
 };

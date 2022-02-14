@@ -4,6 +4,18 @@
 using namespace std;
 using namespace nc;
 
+bool _strEndsWith(const std::string& fullString, const std::string& ending)
+{
+    if (fullString.length() >= ending.length())
+    {
+        return (0 == fullString.compare(fullString.length() - ending.length(), ending.length(), ending));
+    }
+    else
+    {
+        return false;
+    }
+}
+
 DeamonCommand::DeamonCommand() : m_nh("~"), m_asyncSpiner(1, &m_callbackQueue), m_asyncHandle("~")
 {
     m_asyncHandle.setCallbackQueue(&m_callbackQueue);
@@ -30,8 +42,34 @@ void DeamonCommand::printHelp()
 
 bool DeamonCommand::parseArguments(ArgParser& parser)
 {
-    if (!parseTopics(parser, &m_allTopics, &m_topics))
+    std::vector<std::string> topics;
+
+    if (!parseTopics(parser, &m_allTopics, &topics))
         return false;
+
+    for (const string& topic : topics)
+    {
+        int nPos = topic.find("@");
+        if (nPos != -1)
+        {
+            if (_strEndsWith(topic, "hz"))
+            {
+                std::string topicName = topic.substr(0, nPos);
+                std::string topicFrequency = topic.substr(nPos + 1, topic.length() - topicName.length() - 3);
+                float frequency = atof(topicFrequency.c_str());
+                m_topicsFrequencies[topicName] = frequency;
+            }
+            else
+            {
+                printf("error: topic name format error: %s", topic.c_str());
+                return false;
+            }
+        }
+        else
+        {
+            m_topicsFrequencies[topic] = 0;
+        }
+    }
 
     parser.setDefault("limit", "300");
     m_timeLimit = atof(parser.getArg("limit"));
@@ -103,22 +141,15 @@ void DeamonCommand::topicCallback(const std::string& topic, float frequency,
         ros::Time recvTime = ros::Time::now();
         OutgoingMessage msg{topic, recvTime, msgEvent.getMessage(), msgEvent.getConnectionHeaderPtr()};
 
-        if (frequency > 0.f)
+        if (frequency > 0)
         {
-            auto res = m_lowerFrequencyTopics.insert(make_pair(topic, recvTime));
-            if (res.second)
-            {
-                return; // map init
-            }
-
-            if ((recvTime - m_lowerFrequencyTopics[topic]).toSec() < 1.0 / frequency)
+            auto iter = m_topicLastReceivedTime.find(topic);
+            if (iter != m_topicLastReceivedTime.end() && recvTime.toSec() - iter->second.toSec() < 1.0 / frequency)
             {
                 return; // skip some data
             }
-            else
-            {
-                m_lowerFrequencyTopics[topic] = recvTime; // update map
-            }
+
+            m_topicLastReceivedTime.insert(iter, make_pair(topic, recvTime)); // update map
         }
 
         nc::LockGuard lg(m_bufferMutex);
@@ -126,7 +157,7 @@ void DeamonCommand::topicCallback(const std::string& topic, float frequency,
     }
 }
 
-void DeamonCommand::subscribeTopic(std::string& topic, float frequency)
+void DeamonCommand::subscribeTopic(const std::string& topic, float frequency)
 {
     ROS_INFO("Subscribing to %s", topic.c_str());
 
@@ -153,7 +184,7 @@ void DeamonCommand::pollTopicsTimer(const ros::TimerEvent& /* e */)
             auto res = m_checkTopics.insert(t.name);
             if (res.second)
             {
-                subscribeTopic(t.name);
+                subscribeTopic(t.name, m_topicsFrequencies[t.name]);
             }
         }
     }
@@ -242,29 +273,13 @@ int DeamonCommand::run()
     else
     {
         printf("recoding topics:\n");
-        for (auto& topic : m_topics)
+        for (auto& topicFrequency : m_topicsFrequencies)
         {
-            int nPos = topic.find("@");
-            if (nPos != -1)
+            auto res = m_checkTopics.insert(topicFrequency.first);
+            if (res.second)
             {
-                std::string topicName = topic.substr(0, nPos);
-                std::string topicFrequency = topic.substr(nPos + 1, topic.length() - topicName.length() - 3);
-                float frequency = atof(topicFrequency.c_str());
-                auto res = m_checkTopics.insert(topicName);
-                if (res.second)
-                {
-                    printf("\t%s\n", topic.c_str());
-                    subscribeTopic(topicName, frequency);
-                }
-            }
-            else
-            {
-                auto res = m_checkTopics.insert(topic);
-                if (res.second)
-                {
-                    printf("\t%s\n", topic.c_str());
-                    subscribeTopic(topic);
-                }
+                printf("\t%s\n", topicFrequency.first.c_str());
+                subscribeTopic(topicFrequency.first, topicFrequency.second);
             }
         }
     }
