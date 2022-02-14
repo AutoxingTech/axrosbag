@@ -4,6 +4,18 @@
 using namespace std;
 using namespace nc;
 
+bool _strEndsWith(const std::string& fullString, const std::string& ending)
+{
+    if (fullString.length() >= ending.length())
+    {
+        return (0 == fullString.compare(fullString.length() - ending.length(), ending.length(), ending));
+    }
+    else
+    {
+        return false;
+    }
+}
+
 DeamonCommand::DeamonCommand() : m_nh("~"), m_asyncSpiner(1, &m_callbackQueue), m_asyncHandle("~")
 {
     m_asyncHandle.setCallbackQueue(&m_callbackQueue);
@@ -30,8 +42,39 @@ void DeamonCommand::printHelp()
 
 bool DeamonCommand::parseArguments(ArgParser& parser)
 {
-    if (!parseTopics(parser, &m_allTopics, &m_topics))
+    std::vector<std::string> topics;
+
+    if (!parseTopics(parser, &m_allTopics, &topics))
         return false;
+
+    for (const string& topic : topics)
+    {
+        int nPos = topic.find("@");
+        if (nPos != -1)
+        {
+            if (_strEndsWith(topic, "hz"))
+            {
+                std::string topicName = topic.substr(0, nPos);
+                std::string topicFrequency = topic.substr(nPos + 1, topic.length() - topicName.length() - 3);
+                float frequency = atof(topicFrequency.c_str());
+                if (frequency == 0)
+                {
+                    ROS_ERROR("topic resample frequency must not be 0: %s", topic.c_str());
+                    return false;
+                }
+                m_topicMinIntervals[topicName] = 1.0 / frequency;
+            }
+            else
+            {
+                ROS_ERROR("topic name format error: %s", topic.c_str());
+                return false;
+            }
+        }
+        else
+        {
+            m_topicMinIntervals[topic] = 0;
+        }
+    }
 
     parser.setDefault("limit", "300");
     m_timeLimit = atof(parser.getArg("limit"));
@@ -82,7 +125,7 @@ void DeamonCommand::removeMessageTimer(const ros::TimerEvent& /* e */)
     ROS_DEBUG("Messages in queue %d", (int)m_buffer.size());
 }
 
-void DeamonCommand::topicCallback(const std::string& topic,
+void DeamonCommand::topicCallback(const std::string& topic, float minInterval,
                                   const ros::MessageEvent<topic_tools::ShapeShifter const>& msgEvent)
 {
     bool paused = false;
@@ -103,12 +146,25 @@ void DeamonCommand::topicCallback(const std::string& topic,
         ros::Time recvTime = ros::Time::now();
         OutgoingMessage msg{topic, recvTime, msgEvent.getMessage(), msgEvent.getConnectionHeaderPtr()};
 
+        if (minInterval != 0)
+        {
+            nc::LockGuard lg(m_bufferMutex);
+            auto iter = m_topicLastReceivedTime.find(topic);
+            if (iter != m_topicLastReceivedTime.end() && recvTime.toSec() - iter->second.toSec() < minInterval)
+            {
+                return; // skip some data
+            }
+
+            // update last received time
+            m_topicLastReceivedTime[topic] = recvTime;
+        }
+
         nc::LockGuard lg(m_bufferMutex);
         m_buffer.push_back(msg);
     }
 }
 
-void DeamonCommand::subscribeTopic(std::string& topic)
+void DeamonCommand::subscribeTopic(const std::string& topic, float minInterval)
 {
     ROS_INFO("Subscribing to %s", topic.c_str());
 
@@ -119,7 +175,9 @@ void DeamonCommand::subscribeTopic(std::string& topic)
     ops.datatype = ros::message_traits::datatype<topic_tools::ShapeShifter>();
     ops.helper =
         boost::make_shared<ros::SubscriptionCallbackHelperT<const ros::MessageEvent<topic_tools::ShapeShifter const>&>>(
-            [this, topic](const ros::MessageEvent<topic_tools::ShapeShifter const>& ev) { topicCallback(topic, ev); });
+            [this, topic, minInterval](const ros::MessageEvent<topic_tools::ShapeShifter const>& ev) {
+                topicCallback(topic, minInterval, ev);
+            });
     m_subscribers.push_back(m_nh.subscribe(ops));
 }
 
@@ -133,7 +191,7 @@ void DeamonCommand::pollTopicsTimer(const ros::TimerEvent& /* e */)
             auto res = m_checkTopics.insert(t.name);
             if (res.second)
             {
-                subscribeTopic(t.name);
+                subscribeTopic(t.name, m_topicMinIntervals[t.name]);
             }
         }
     }
@@ -222,13 +280,13 @@ int DeamonCommand::run()
     else
     {
         printf("recoding topics:\n");
-        for (auto& topic : m_topics)
+        for (auto& topicMinIntervals : m_topicMinIntervals)
         {
-            auto res = m_checkTopics.insert(topic);
+            auto res = m_checkTopics.insert(topicMinIntervals.first);
             if (res.second)
             {
-                printf("\t%s\n", topic.c_str());
-                subscribeTopic(topic);
+                printf("\t%s\n", topicMinIntervals.first.c_str());
+                subscribeTopic(topicMinIntervals.first, topicMinIntervals.second);
             }
         }
     }
