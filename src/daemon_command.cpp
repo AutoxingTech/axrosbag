@@ -4,18 +4,6 @@
 using namespace std;
 using namespace nc;
 
-bool _strEndsWith(const std::string& fullString, const std::string& ending)
-{
-    if (fullString.length() >= ending.length())
-    {
-        return (0 == fullString.compare(fullString.length() - ending.length(), ending.length(), ending));
-    }
-    else
-    {
-        return false;
-    }
-}
-
 DeamonCommand::DeamonCommand() : m_nh("~"), m_asyncSpiner(1, &m_callbackQueue), m_asyncHandle("~")
 {
     m_asyncHandle.setCallbackQueue(&m_callbackQueue);
@@ -213,7 +201,7 @@ bool DeamonCommand::writeServiceCallback(TriggerRecord::Request& req, TriggerRec
         writer = std::make_unique<BagWriter>(m_buffer, m_latchedMsgs);
     }
 
-    if (!writer->writeIntoFile(req.filename, (CompressionType)req.compression_type))
+    if (!writer->writeIntoFile(req.filename, (CompressionType)req.compression_type, req.duration_limit))
     {
         res.message = writer->errorMessage();
         res.success = false;

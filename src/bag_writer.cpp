@@ -1,6 +1,6 @@
 #include "bag_writer.h"
 
-bool BagWriter::writeIntoFile(const std::string& filename, CompressionType compressionType)
+bool BagWriter::writeIntoFile(const std::string& filename, CompressionType compressionType, int durationLimit)
 {
     try
     {
@@ -29,11 +29,15 @@ bool BagWriter::writeIntoFile(const std::string& filename, CompressionType compr
 
     try
     {
-
         // first write latched topics
         if (!m_latchedMsgs.empty() && !m_messages.empty())
         {
             ros::Time startTime = m_messages.front().recvTime;
+            ros::Time endTime = m_messages.back().recvTime;
+            if ((endTime - startTime).toSec() > durationLimit)
+            {
+                startTime = endTime - ros::Duration(durationLimit);
+            }
 
             for (auto& msg : m_latchedMsgs)
             {
@@ -47,13 +51,22 @@ bool BagWriter::writeIntoFile(const std::string& filename, CompressionType compr
         }
 
         // write topics
-        for (auto& msg : m_messages)
+        if (!m_messages.empty())
         {
-            m_bag.write(msg.topic, msg.recvTime, msg.topicMsg, msg.connectionHeader);
-            if (!ros::ok())
+            ros::Time endTime = m_messages.back().recvTime;
+            for (auto& msg : m_messages)
             {
-                m_error = std::string("write cancelled");
-                return false;
+                if ((endTime - msg.recvTime).toSec() > durationLimit)
+                {
+                    continue;
+                }
+
+                m_bag.write(msg.topic, msg.recvTime, msg.topicMsg, msg.connectionHeader);
+                if (!ros::ok())
+                {
+                    m_error = std::string("write cancelled");
+                    return false;
+                }
             }
         }
     }

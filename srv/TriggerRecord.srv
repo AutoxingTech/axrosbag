@@ -4,6 +4,7 @@ int32 COMPRESSION_TYPE_LZ4 = 2
 
 string filename
 int32 compression_type
+int32 duration_limit
 ---
 bool success
 string NO_DATA_MESSAGE=no messages buffered on selected topics

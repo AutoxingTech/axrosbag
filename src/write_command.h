@@ -22,4 +22,5 @@ private:
     bool m_allTopics;
     CompressionType m_compressType = CompressionType::none;
     ros::NodeHandle m_nh;
+    int m_durationLimit;
 };
