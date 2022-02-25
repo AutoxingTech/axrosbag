@@ -15,7 +15,7 @@ public:
     }
     ~BagWriter() = default;
 
-    bool writeIntoFile(const std::string& filename, CompressionType compressionType);
+    bool writeIntoFile(const std::string& filename, CompressionType compressionType, int durationLimit);
 
     std::string errorMessage() { return m_error; }
 
